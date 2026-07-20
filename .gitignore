@@ -16,5 +16,6 @@ npm/
 # Auth credentials — never commit
 auth.json
 
-# MCP cache
+# MCP cache and model store
 mcp-cache.json
+models-store.json
