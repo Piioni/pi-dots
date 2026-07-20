@@ -1,4 +1,5 @@
-# Gentle AI runtime (installed by package)
+# Gentle AI runtime (installed by package — pi install/update restores them)
+gentle-ai/
 chains/
 pi-pretty/
 

@@ -2,26 +2,34 @@
   "defaultModel": "gpt-5.5",
   "defaultProvider": "openai-codex",
   "defaultThinkingLevel": "high",
+  "editorPaddingX": 0,
+  "enableInstallTelemetry": false,
+  "extensions": [
+    "+extensions/claude-project-adapter/index.ts",
+    "+extensions/permission-mode-switcher/index.ts",
+    "+extensions/piioni-layout/index.ts"
+  ],
   "lastChangelogVersion": "0.80.10",
+  "outputPad": 1,
   "packages": [
     {
-      "source": "npm:gentle-pi",
       "extensions": [
         "+extensions/gentle-ai.ts"
-      ],
-      "skills": [
-        "-skills/branch-pr/SKILL.md",
-        "-skills/chained-pr/SKILL.md",
-        "-skills/issue-creation/SKILL.md"
-      ],
-      "themes": [
-        "-themes/Gentle.json"
       ],
       "prompts": [
         "-prompts/gcl.md",
         "-prompts/gis.md",
         "-prompts/gpr.md",
         "-prompts/gwr.md"
+      ],
+      "skills": [
+        "-skills/branch-pr/SKILL.md",
+        "-skills/chained-pr/SKILL.md",
+        "-skills/issue-creation/SKILL.md"
+      ],
+      "source": "npm:gentle-pi",
+      "themes": [
+        "-themes/Gentle.json"
       ]
     },
     "npm:gentle-engram",
@@ -31,31 +39,23 @@
     "npm:pi-web-access",
     "npm:@juicesharp/rpiv-todo",
     "npm:pi-btw",
-    "npm:pi-mcp-adapter",
     {
-      "source": "npm:@hypabolic/pi-hypa",
       "extensions": [
         "+extensions/index.ts"
-      ]
+      ],
+      "source": "npm:@hypabolic/pi-hypa"
     },
     "npm:@tintinweb/pi-subagents",
     "npm:pi-lens",
     "npm:pi-simplify",
     "npm:pi-permission-system",
-    "npm:@mjasnikovs/pi-task"
+    "npm:@mjasnikovs/pi-task",
+    "npm:pi-mcp-adapter"
   ],
-  "theme": "catppuccin-mocha",
-  "outputPad": 1,
-  "editorPaddingX": 0,
+  "steeringMode": "one-at-a-time",
   "terminal": {
     "clearOnShrink": true,
     "showTerminalProgress": false
   },
-  "steeringMode": "one-at-a-time",
-  "enableInstallTelemetry": false,
-  "extensions": [
-    "+extensions/claude-project-adapter/index.ts",
-    "+extensions/permission-mode-switcher/index.ts",
-    "+extensions/piioni-layout/index.ts"
-  ]
+  "theme": "catppuccin-mocha"
 }
