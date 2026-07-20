@@ -1,3 +1,7 @@
+# Gentle AI runtime (installed by package)
+chains/
+pi-pretty/
+
 # Sessions — large and ephemeral
 sessions/
 
