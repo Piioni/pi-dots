@@ -1,0 +1,23 @@
+{
+  "defaultPolicy": {
+    "tools": "allow",
+    "bash": "allow",
+    "mcp": "allow",
+    "skills": "allow",
+    "special": "allow"
+  },
+  "tools": {},
+  "bash": {
+    "git push --force*": "ask",
+    "git reset --hard*": "ask",
+    "git clean*": "ask",
+    "rm -rf*": "ask",
+    "sudo*": "ask",
+    "chmod -R*": "ask",
+    "chown -R*": "ask",
+    "docker system prune*": "ask"
+  },
+  "mcp": {},
+  "skills": {},
+  "special": {}
+}

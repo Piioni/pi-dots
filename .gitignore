@@ -1,0 +1,15 @@
+# Sessions — large and ephemeral
+sessions/
+
+# Node modules in extensions
+extensions/*/node_modules/
+
+# Runtime caches
+gentle-ai/
+npm/
+
+# Auth credentials — never commit
+auth.json
+
+# MCP cache
+mcp-cache.json

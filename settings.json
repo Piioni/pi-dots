@@ -1,0 +1,61 @@
+{
+  "defaultModel": "gpt-5.5",
+  "defaultProvider": "openai-codex",
+  "defaultThinkingLevel": "high",
+  "lastChangelogVersion": "0.80.10",
+  "packages": [
+    {
+      "source": "npm:gentle-pi",
+      "extensions": [
+        "+extensions/gentle-ai.ts"
+      ],
+      "skills": [
+        "-skills/branch-pr/SKILL.md",
+        "-skills/chained-pr/SKILL.md",
+        "-skills/issue-creation/SKILL.md"
+      ],
+      "themes": [
+        "-themes/Gentle.json"
+      ],
+      "prompts": [
+        "-prompts/gcl.md",
+        "-prompts/gis.md",
+        "-prompts/gpr.md",
+        "-prompts/gwr.md"
+      ]
+    },
+    "npm:gentle-engram",
+    "npm:gentle-engram@0.1.8",
+    "npm:pi-subagents-j0k3r",
+    "npm:@juicesharp/rpiv-ask-user-question",
+    "npm:pi-web-access",
+    "npm:@juicesharp/rpiv-todo",
+    "npm:pi-btw",
+    "npm:pi-mcp-adapter",
+    {
+      "source": "npm:@hypabolic/pi-hypa",
+      "extensions": [
+        "+extensions/index.ts"
+      ]
+    },
+    "npm:@tintinweb/pi-subagents",
+    "npm:pi-lens",
+    "npm:pi-simplify",
+    "npm:pi-permission-system",
+    "npm:@mjasnikovs/pi-task"
+  ],
+  "theme": "catppuccin-mocha",
+  "outputPad": 1,
+  "editorPaddingX": 0,
+  "terminal": {
+    "clearOnShrink": true,
+    "showTerminalProgress": false
+  },
+  "steeringMode": "one-at-a-time",
+  "enableInstallTelemetry": false,
+  "extensions": [
+    "+extensions/claude-project-adapter/index.ts",
+    "+extensions/permission-mode-switcher/index.ts",
+    "+extensions/piioni-layout/index.ts"
+  ]
+}
