@@ -6,12 +6,8 @@ pi-pretty/
 # Sessions — large and ephemeral
 sessions/
 
-# Node modules in extensions
-extensions/*/node_modules/
-
-# Runtime caches
-gentle-ai/
-npm/
+# Node modules
+node_modules/
 
 # Auth credentials — never commit
 auth.json
@@ -19,3 +15,4 @@ auth.json
 # MCP cache and model store
 mcp-cache.json
 models-store.json
+npm/
