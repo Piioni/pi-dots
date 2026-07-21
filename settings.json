@@ -1,6 +1,6 @@
 {
-  "defaultModel": "gpt-5.5",
-  "defaultProvider": "openai-codex",
+  "defaultModel": "deepseek-v4-pro",
+  "defaultProvider": "deepseek",
   "defaultThinkingLevel": "high",
   "editorPaddingX": 0,
   "enableInstallTelemetry": false,

@@ -16,3 +16,6 @@ auth.json
 mcp-cache.json
 models-store.json
 npm/
+
+# Local Pi runtime state
+.atl/
