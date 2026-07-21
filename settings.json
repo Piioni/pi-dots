@@ -4,11 +4,7 @@
   "defaultThinkingLevel": "high",
   "editorPaddingX": 0,
   "enableInstallTelemetry": false,
-  "extensions": [
-    "+extensions/claude-project-adapter/index.ts",
-    "+extensions/permission-mode-switcher/index.ts",
-    "+extensions/piioni-layout/index.ts"
-  ],
+  "extensions": [],
   "lastChangelogVersion": "0.80.10",
   "outputPad": 1,
   "packages": [

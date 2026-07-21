@@ -9,5 +9,8 @@
     "@earendil-works/pi-tui": "^0.80.7",
     "@types/node": "^24.0.0",
     "typescript": "^5.8.0"
+  },
+  "pi": {
+    "extensions": ["./src/index.ts"]
   }
 }
