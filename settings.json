@@ -1,11 +1,11 @@
 {
-  "defaultModel": "deepseek-v4-pro",
-  "defaultProvider": "deepseek",
+  "defaultModel": "gpt-5.6-sol",
+  "defaultProvider": "openai-codex",
   "defaultThinkingLevel": "high",
   "editorPaddingX": 0,
   "enableInstallTelemetry": false,
   "extensions": [],
-  "lastChangelogVersion": "0.81.1",
+  "lastChangelogVersion": "0.84.4",
   "outputPad": 1,
   "packages": [
     {
@@ -53,5 +53,7 @@
     "clearOnShrink": true,
     "showTerminalProgress": false
   },
-  "theme": "catppuccin-mocha"
+  "theme": "catppuccin-mocha",
+  "hideThinkingBlock": false,
+  "showCacheMissNotices": true
 }
