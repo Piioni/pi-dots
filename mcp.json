@@ -1,12 +1,7 @@
 {
   "mcpServers": {
     "context7": {
-      "args": [
-        "-y",
-        "--package=@upstash/context7-mcp@2.2.5",
-        "--",
-        "context7-mcp"
-      ],
+      "args": ["-y", "--package=@upstash/context7-mcp@2.2.5", "--", "context7-mcp"],
       "command": "npx",
       "directTools": true
     },
@@ -17,6 +12,11 @@
       ],
       "command": "node",
       "directTools": true,
+      "lifecycle": "lazy"
+    },
+    "linear": {
+      "url": "https://mcp.linear.app/mcp",
+      "auth": "oauth",
       "lifecycle": "lazy"
     }
   }
