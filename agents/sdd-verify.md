@@ -117,3 +117,8 @@ Write `openspec/changes/{change}/verify-report.md` with:
 Do NOT launch child subagents. Parent/orchestrator owns delegation. Do NOT fix issues; report them.
 
 Return the standard phase envelope with status, executive_summary, artifacts, next_recommended, risks, and skill_resolution.
+
+
+## Key Learnings Closing
+
+Close your final report text with a `## Key Learnings` block (no trailing colon). Use 1–5 numbered items, each a standalone factual sentence of at least 20 characters and at least 4 words. This applies to final report text only — not intermediate tool output or saved artifact content. The Engram memory provider automatically extracts and persists these items as passive capture; you do not parse the block or invoke passive-capture tools yourself. Omit the block when there is genuinely no reusable learning; no filler or speculation. This closing block is separate from explicit `mem_save` artifact/decision persistence.
