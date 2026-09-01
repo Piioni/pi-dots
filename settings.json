@@ -29,7 +29,6 @@
       ]
     },
     "npm:gentle-engram",
-    "npm:gentle-engram@0.1.8",
     "npm:pi-subagents-j0k3r",
     "npm:@juicesharp/rpiv-ask-user-question",
     "npm:pi-web-access",
@@ -41,7 +40,6 @@
       ],
       "source": "npm:@hypabolic/pi-hypa"
     },
-    "npm:@tintinweb/pi-subagents",
     "npm:pi-lens",
     "npm:pi-simplify",
     "npm:pi-permission-system",
