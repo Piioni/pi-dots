@@ -498,20 +498,25 @@ Convention files under the agent's global skills directory (global) or `.agent/s
 - `none` → state not persisted — explain to user
 <!-- /gentle-ai:sdd-orchestrator -->
 
-<!-- gentle-ai:trigger-rules -->
-## Agent Trigger Rules
+<!-- gentle-ai:agent-routing -->
+## Implementation Routing
 
-Deterministic bounded-review lifecycle router; apply it as a decision procedure, not advice. Post-apply starts `review/start(target)` only when no valid receipt exists. Pre-commit, pre-push, and pre-PR validate the same content-bound receipt and never create a new review budget or silently start Judgment Day. Release from protected `main` may bypass receipt validation only when the tag targets the current immutable `origin/main` SHA, required CI for that exact SHA is successful, the remote head is rechecked before tag push, and no fresh risk evidence exists; otherwise fail closed through native receipt validation. Major and post-incident releases require explicit extraordinary review.
+Route work for the requested outcome with the smallest useful topology. Every change takes exactly one implementation route: direct inline, delegated direct, or optional SDD.
 
-Receipt action table: missing → start explicitly after implementation/post-apply; scope-changed → require explicit maintainer action; invalidated → require explicit maintainer action; escalated → stop. New CI, vulnerability, base, policy, provenance, or release evidence may invalidate/escalate without reopening unchanged code review.
+- **Direct inline:** decide or verify from 1–3 files inline. Keep one mechanical, already-understood file change inline only when it needs no research and has no unresolved design decision.
+- **Delegated direct:** delegate one narrow exploration when understanding needs 4+ files; delegate one writer for 2+ non-trivial files. Reading that prepares a write and broad research also delegate.
+- **Optional SDD:** propose SDD only when durable proposal, spec, design, and tasks would materially reduce substantial ambiguity. SDD is selected only by an explicit request or an accepted proposal.
+- File count, changed lines, size, or perceived risk alone never selects SDD and never forces a heavier route.
+- These are implementation routes, not a ban on per-action delegation. Tests, builds, installs, and review actors may still use fresh workers without changing the selected route.
+- Direct and delegated work never create SDD artifacts, prompts, phase attempts, or synthetic SDD runs.
 
-Inside explicit `review/start(target)` only, select initial lenses by deterministic risk: **Low** (only documentation, comments, formatting, or typo-only string edits; zero executable-code and configuration changes) → no lens; **Medium** (every remaining change) → exactly ONE dominant-risk lens; **High** (security/auth/update/payments, data loss or exposure, permission changes, shell/process integration, or more than 400 authored changed lines) → four initial 4R lens sweeps. Generated goldens are excluded from the authored threshold but remain in snapshot identity. Model, provider, profile, and reasoning effort are never classifier inputs.
+### Receipt-driven development is user-owned
 
-Risk table: Clear naming, structure, maintainability, or small refactors → `review-readability`; Behavior, state, tests, determinism, or regressions → `review-reliability`; Shell/process integration, partial failures, recovery, or degraded dependencies → `review-resilience`; Security, permissions, data exposure/loss, architecture, or dependencies → `review-risk`.
+The user controls receipt-driven development with a kill switch: `gentle-ai review mode enable|disable|status`.
 
-- At **pre-commit**, always: validate the existing content-bound receipt with native `gentle-ai review validate --gate <gate>`; never start a reviewer or reset its budget. (validate the staged/intended content against the existing receipt; never create a review budget)
-- At **pre-push**, always: validate the existing content-bound receipt with native `gentle-ai review validate --gate <gate>`; never start a reviewer or reset its budget. (validate pushed commits against the same content-bound receipt)
-- At **pre-pr**, always: validate the existing content-bound receipt with native `gentle-ai review validate --gate <gate>`; never start a reviewer or reset its budget. (validate candidate tree, paths, policy, evidence, base relationship, and receipt without reopening review)
-- At **release**, always: validate the existing content-bound receipt with native `gentle-ai review validate --gate <gate>`; never start a reviewer or reset its budget. (validate immutable release tree, provenance, evidence, and publication boundary)
-- At **post-sdd-phase**, after the apply phase completes: if no valid receipt exists, explicitly run `review/start(target)`; otherwise reuse the receipt. (explicitly start ordinary bounded implementation review after apply only when no valid receipt exists)
-<!-- /gentle-ai:trigger-rules -->
+- `status` is read-only. It reports the deciding source and the effective mode, and changes nothing.
+- When the user asks to stop using receipt-driven development, run `disable`. Do not argue, do not work around it, and do not propose alternatives first.
+- While it is disabled, keep implementing organically through direct inline, delegated direct, or optional SDD: do not start reviews, do not retry, do not reactivate it, and do not fall back to any retired path.
+- Delivery under a disabled switch follows ordinary repository policy and reports `disabled/unmanaged`, never a fabricated approval.
+- Never enable receipt-driven development on the user's behalf unless the user explicitly asks for it.
+<!-- /gentle-ai:agent-routing -->
