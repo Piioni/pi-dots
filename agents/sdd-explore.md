@@ -4,7 +4,7 @@ description: Explore an SDD change idea before proposal.
 tools:
   - read
   - grep
-  - glob
+  - find
   - edit
   - write
   - webfetch

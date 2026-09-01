@@ -2,7 +2,6 @@
 name: review-validator
 description: Per-attempt targeted proof validator for exact frozen rows.
 tools:
-  - "*": false
   - read
   - grep
   - find
