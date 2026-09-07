@@ -10,7 +10,6 @@ interface AssistantUsageContext {
           input?: number;
           output?: number;
           cacheRead?: number;
-          cost?: { total?: number };
         };
       };
     }>;
@@ -28,7 +27,7 @@ interface ThinkingLevelProvider {
 }
 
 function getUsage(ctx: AssistantUsageContext): DashboardUsageSnapshot {
-  const usage = { input: 0, output: 0, cacheRead: 0, cost: 0 };
+  const usage = { input: 0, output: 0, cacheRead: 0 };
   let found = false;
 
   for (const entry of ctx.sessionManager.getBranch()) {
@@ -39,7 +38,6 @@ function getUsage(ctx: AssistantUsageContext): DashboardUsageSnapshot {
         input?: number;
         output?: number;
         cacheRead?: number;
-        cost?: { total?: number };
       };
     };
     if (message.role !== "assistant" || !message.usage) continue;
@@ -54,10 +52,6 @@ function getUsage(ctx: AssistantUsageContext): DashboardUsageSnapshot {
     }
     if (typeof message.usage.cacheRead === "number") {
       usage.cacheRead += message.usage.cacheRead;
-      found = true;
-    }
-    if (typeof message.usage.cost?.total === "number") {
-      usage.cost += message.usage.cost.total;
       found = true;
     }
   }

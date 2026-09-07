@@ -47,13 +47,13 @@ test("footer primary keeps PR and context when both fit", () => {
     width: 60,
     left: "mode • model • thinking",
     pullRequest: "PR #42",
-    context: "Contexto: 43.2%/128k",
+    context: "ctx [====......] 43%",
   });
 
   assert.equal(decision.includesPullRequest, true);
   assert.equal(decision.includesContext, true);
   assert.match(decision.right, /PR #42/);
-  assert.match(decision.right, /Contexto:/);
+  assert.match(decision.right, /ctx \[/);
 });
 
 test("footer primary drops PR before context", () => {
@@ -61,12 +61,12 @@ test("footer primary drops PR before context", () => {
     width: 47,
     left: "mode • model • thinking",
     pullRequest: "PR #42",
-    context: "Contexto: 43.2%/128k",
+    context: "ctx [====......] 43%",
   });
 
   assert.equal(decision.includesPullRequest, false);
   assert.equal(decision.includesContext, true);
-  assert.equal(decision.right, "Contexto: 43.2%/128k");
+  assert.equal(decision.right, "ctx [====......] 43%");
 });
 
 test("footer primary collapses right side entirely when context does not fit", () => {
@@ -74,7 +74,7 @@ test("footer primary collapses right side entirely when context does not fit", (
     width: 30,
     left: "mode • model • thinking",
     pullRequest: "PR #42",
-    context: "Contexto: 43.2%/128k",
+    context: "ctx [====......] 43%",
   });
 
   assert.equal(decision.includesPullRequest, false);
@@ -89,47 +89,43 @@ test("footer tokens keeps full tier when width allows", () => {
     output: "↓3k",
     cache: "R4k",
     cacheHit: "CH90.0%",
-    cost: "$0.123",
   });
 
   assert.equal(decision.tier, "full");
-  assert.deepEqual(decision.parts, ["↑12k", "↓3k", "R4k", "CH90.0%", "$0.123"]);
+  assert.deepEqual(decision.parts, ["↑12k", "↓3k", "R4k", "CH90.0%"]);
 });
 
 test("footer tokens degrades to medium without cache read", () => {
   const decision = selectResponsiveFooterTokens({
-    width: 34,
+    width: 25,
     input: "↑12k",
     output: "↓3k",
     cache: "R4k",
     cacheHit: "CH90.0%",
-    cost: "$0.123",
   });
 
   assert.equal(decision.tier, "medium");
-  assert.deepEqual(decision.parts, ["↑12k", "↓3k", "CH90.0%", "$0.123"]);
+  assert.deepEqual(decision.parts, ["↑12k", "↓3k", "CH90.0%"]);
 });
 
-test("footer tokens degrades to small and tiny tiers by importance", () => {
+test("footer tokens degrades to the cache-hit tier when narrow", () => {
   const small = selectResponsiveFooterTokens({
-    width: 28,
-    input: "↑12k",
-    output: "↓3k",
-    cache: "R4k",
-    cacheHit: "CH90.0%",
-    cost: "$0.123",
-  });
-  const tiny = selectResponsiveFooterTokens({
     width: 20,
     input: "↑12k",
     output: "↓3k",
     cache: "R4k",
     cacheHit: "CH90.0%",
-    cost: "$0.123",
+  });
+  const narrow = selectResponsiveFooterTokens({
+    width: 16,
+    input: "↑12k",
+    output: "↓3k",
+    cache: "R4k",
+    cacheHit: "CH90.0%",
   });
 
   assert.equal(small.tier, "small");
-  assert.deepEqual(small.parts, ["CH90.0%", "$0.123"]);
-  assert.equal(tiny.tier, "tiny");
-  assert.deepEqual(tiny.parts, ["$0.123"]);
+  assert.deepEqual(small.parts, ["CH90.0%"]);
+  assert.equal(narrow.tier, "small");
+  assert.deepEqual(narrow.parts, ["CH90.0%"]);
 });

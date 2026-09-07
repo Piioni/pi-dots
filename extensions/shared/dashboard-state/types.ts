@@ -9,7 +9,6 @@ export interface DashboardUsageSnapshot {
   input?: number;
   output?: number;
   cacheRead?: number;
-  cost?: number;
 }
 
 export interface DashboardContextSnapshot {

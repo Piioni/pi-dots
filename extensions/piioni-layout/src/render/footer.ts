@@ -67,21 +67,20 @@ function formatMetricPercent(value: number | undefined): string {
 	return `${value.toFixed(1)}%`;
 }
 
-function metricPart(
-	ctx: ExtensionContext,
-	label: string,
-	value: string,
-	tone: "success" | "warning" | "error" | "accent" | "dim",
-): string {
-	return colorStatus(ctx, tone, `${label}${value}`);
-}
-
 function neutralMetricPart(
 	ctx: ExtensionContext,
 	label: string,
 	value: string,
 ): string {
 	return colorSapphire(ctx, `${label}${value}`);
+}
+
+function cacheMetricPart(
+	ctx: ExtensionContext,
+	label: string,
+	value: string,
+): string {
+	return colorPeach(ctx, `${label}${value}`);
 }
 
 function buildTokensLine(
@@ -100,36 +99,20 @@ function buildTokensLine(
 			: undefined;
 	const cache =
 		typeof usage.cacheRead === "number"
-			? neutralMetricPart(ctx, "R", formatMetricTokens(usage.cacheRead))
+			? cacheMetricPart(ctx, "R", formatMetricTokens(usage.cacheRead))
 			: undefined;
 
 	const cacheHit =
 		typeof usage.cacheRead === "number" &&
 		typeof usage.input === "number" &&
 		usage.cacheRead + usage.input > 0
-			? metricPart(
+			? cacheMetricPart(
 					ctx,
 					"CH",
 					formatMetricPercent(
 						(usage.cacheRead / (usage.cacheRead + usage.input)) * 100,
 					),
-					(usage.cacheRead / (usage.cacheRead + usage.input)) * 100 >= 90
-						? "success"
-						: (usage.cacheRead / (usage.cacheRead + usage.input)) * 100 >= 70
-							? "accent"
-							: "warning",
 				)
-			: undefined;
-
-	const authIndicator = ctx.model
-		? ctx.modelRegistry.isUsingOAuth(ctx.model)
-			? `${colorText(ctx, " (sub)")}`
-			: `${colorText(ctx, " (api)")}`
-		: "";
-
-	const cost =
-		typeof usage.cost === "number"
-			? `${colorPeach(ctx, "$")}${colorPeach(ctx, usage.cost.toFixed(3))}${authIndicator}`
 			: undefined;
 
 	const decision = selectResponsiveFooterTokens({
@@ -138,7 +121,6 @@ function buildTokensLine(
 		output,
 		cache,
 		cacheHit,
-		cost,
 	});
 
 	if (decision.parts.length === 0) return "";
@@ -150,38 +132,34 @@ function buildContextSummary(
 	runtime: DashboardRuntimeSnapshot,
 ): string {
 	const context = runtime.context;
-	if (
-		typeof context.percent !== "number" &&
-		typeof context.tokens !== "number" &&
-		typeof context.contextWindow !== "number"
-	) {
-		return "";
-	}
-
-	const contextText = [
-		formatMetricPercent(context.percent),
-		typeof context.contextWindow === "number"
-			? `/${formatMetricTokens(context.contextWindow)}`
-			: typeof context.tokens === "number"
-				? `/${formatMetricTokens(context.tokens)}`
-				: "",
-	].join("");
-
-	const coloredValue = colorStatus(
-		ctx,
+	const percent =
 		typeof context.percent === "number"
-			? context.percent >= 90
-				? "error"
-				: context.percent >= 75
-					? "warning"
-					: context.percent >= 50
-						? "accent"
-						: "success"
-			: "dim",
-		contextText,
-	);
+			? context.percent
+			: typeof context.tokens === "number" &&
+				  typeof context.contextWindow === "number" &&
+				  context.contextWindow > 0
+				? (context.tokens / context.contextWindow) * 100
+				: undefined;
 
-	return `${colorText(ctx, "Contexto: ")}${coloredValue}`;
+	if (typeof percent !== "number") return "";
+
+	const clampedPercent = Math.max(0, Math.min(100, percent));
+	const filled = Math.round(clampedPercent / 10);
+	const bar = `${"=".repeat(filled)}${".".repeat(10 - filled)}`;
+	const tone =
+		clampedPercent >= 90
+			? "error"
+			: clampedPercent >= 75
+				? "warning"
+				: clampedPercent >= 50
+					? "accent"
+					: "success";
+
+	return colorStatus(
+		ctx,
+		tone,
+		`ctx [${bar}] ${Math.round(clampedPercent)}%`,
+	);
 }
 
 export function makeFooter(

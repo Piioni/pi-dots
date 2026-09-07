@@ -104,7 +104,7 @@ export function selectResponsiveFooterPrimary(
   };
 }
 
-export type FooterTokensTier = "full" | "medium" | "small" | "tiny" | "none";
+export type FooterTokensTier = "full" | "medium" | "small" | "none";
 
 export interface FooterTokensResponsiveInput {
   width: number;
@@ -112,7 +112,6 @@ export interface FooterTokensResponsiveInput {
   output?: string;
   cache?: string;
   cacheHit?: string;
-  cost?: string;
 }
 
 export interface FooterTokensResponsiveDecision {
@@ -124,10 +123,9 @@ const FOOTER_TOKEN_TIERS: Array<{
   tier: Exclude<FooterTokensTier, "none">;
   keys: Array<keyof Omit<FooterTokensResponsiveInput, "width">>;
 }> = [
-  { tier: "full", keys: ["input", "output", "cache", "cacheHit", "cost"] },
-  { tier: "medium", keys: ["input", "output", "cacheHit", "cost"] },
-  { tier: "small", keys: ["cacheHit", "cost"] },
-  { tier: "tiny", keys: ["cost"] },
+  { tier: "full", keys: ["input", "output", "cache", "cacheHit"] },
+  { tier: "medium", keys: ["input", "output", "cacheHit"] },
+  { tier: "small", keys: ["cacheHit"] },
 ];
 
 export function selectResponsiveFooterTokens(
@@ -147,11 +145,6 @@ export function selectResponsiveFooterTokens(
       return { tier: candidate.tier, parts };
     }
   }
-
-  if (input.cost) return { tier: "tiny", parts: [input.cost] };
-
-  const fallbackParts = [input.input, input.output, input.cache, input.cacheHit].filter(Boolean) as string[];
-  if (fallbackParts.length > 0) return { tier: "full", parts: fallbackParts };
 
   return { tier: "none", parts: [] };
 }
