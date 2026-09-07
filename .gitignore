@@ -15,6 +15,7 @@ auth.json
 # MCP cache and model store
 mcp-cache.json
 models-store.json
+antigravity-model-catalog.json
 npm/
 
 # Local Pi runtime state

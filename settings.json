@@ -1,50 +1,34 @@
 {
-  "defaultModel": "gpt-5.6-sol",
-  "defaultProvider": "openai-codex",
+  "defaultModel": "gemini-3.8-flash",
+  "defaultProvider": "antigravity",
   "defaultThinkingLevel": "high",
   "editorPaddingX": 0,
   "enableInstallTelemetry": false,
   "extensions": [],
-  "lastChangelogVersion": "0.84.4",
+  "lastChangelogVersion": "0.85.1",
   "outputPad": 1,
   "packages": [
     {
-      "extensions": [
-        "+extensions/gentle-ai.ts"
-      ],
-      "prompts": [
-        "-prompts/gcl.md",
-        "-prompts/gis.md",
-        "-prompts/gpr.md",
-        "-prompts/gwr.md"
-      ],
-      "skills": [
-        "-skills/branch-pr/SKILL.md",
-        "-skills/chained-pr/SKILL.md",
-        "-skills/issue-creation/SKILL.md"
-      ],
+      "extensions": ["+extensions/gentle-ai.ts"],
+      "prompts": ["-prompts/gcl.md", "-prompts/gis.md", "-prompts/gpr.md", "-prompts/gwr.md"],
+      "skills": ["-skills/branch-pr/SKILL.md", "-skills/chained-pr/SKILL.md", "-skills/issue-creation/SKILL.md"],
       "source": "npm:gentle-pi",
-      "themes": [
-        "-themes/Gentle.json"
-      ]
+      "themes": ["-themes/Gentle.json"]
     },
+    {
+      "extensions": ["+extensions/index.ts"],
+      "source": "npm:@hypabolic/pi-hypa"
+    },
+    "npm:pi-mcp-adapter",
     "npm:gentle-engram",
     "npm:pi-subagents-j0k3r",
     "npm:@juicesharp/rpiv-ask-user-question",
-    "npm:pi-web-access",
     "npm:@juicesharp/rpiv-todo",
-    "npm:pi-btw",
-    {
-      "extensions": [
-        "+extensions/index.ts"
-      ],
-      "source": "npm:@hypabolic/pi-hypa"
-    },
+    "npm:pi-web-access",
     "npm:pi-lens",
-    "npm:pi-simplify",
     "npm:pi-permission-system",
-    "npm:@mjasnikovs/pi-task",
-    "npm:pi-mcp-adapter"
+    "npm:@monotykamary/pi-vcc@0.8.6",
+    "npm:pi-antigravity"
   ],
   "steeringMode": "one-at-a-time",
   "terminal": {
@@ -52,6 +36,6 @@
     "showTerminalProgress": false
   },
   "theme": "catppuccin-mocha",
-  "hideThinkingBlock": false,
+  "hideThinkingBlock": true,
   "showCacheMissNotices": true
 }
