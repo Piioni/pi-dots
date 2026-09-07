@@ -27,8 +27,7 @@
     "npm:pi-web-access",
     "npm:pi-lens",
     "npm:pi-permission-system",
-    "npm:@monotykamary/pi-vcc@0.8.6",
-    "npm:pi-antigravity"
+    "npm:@monotykamary/pi-vcc@0.8.6"
   ],
   "steeringMode": "one-at-a-time",
   "terminal": {
