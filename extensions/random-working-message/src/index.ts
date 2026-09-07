@@ -98,7 +98,7 @@ export default function (pi: ExtensionAPI) {
 		}, 120);
 	});
 
-	pi.on("agent_end", async () => {
+	pi.on("agent_settled", async () => {
 		stopAnimation();
 	});
 

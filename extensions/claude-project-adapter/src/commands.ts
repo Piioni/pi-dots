@@ -1,10 +1,20 @@
-import { readFileSync } from "node:fs";
+import { readFileSync, statSync } from "node:fs";
 import { basename, join } from "node:path";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import { ALLOWED_CLAUDE_COMMAND_NAMES, RESERVED_PI_COMMAND_NAMES } from "./config";
+import {
+  ALLOWED_CLAUDE_COMMAND_NAMES,
+  MAX_COMMAND_BYTES,
+  RESERVED_PI_COMMAND_NAMES,
+} from "./config";
 import { readFrontmatterDescription, stripFrontmatter } from "./frontmatter";
 import type { ClaudeProject, ClaudeProjectResolver } from "./project";
-import { findClaudeProject, isDirectory, isFile, listMarkdownFiles } from "./project";
+import {
+  findClaudeProject,
+  isDirectory,
+  isFile,
+  isProjectTrusted,
+  listMarkdownFiles,
+} from "./project";
 
 export function getClaudeCommandFiles(project: ClaudeProject): Array<{ name: string; path: string }> {
   if (!isDirectory(project.commandsDir)) return [];
@@ -33,23 +43,41 @@ function getClaudeCommandPath(
   return path;
 }
 
+function readClaudeCommandFile(path: string): string | undefined {
+  try {
+    if (statSync(path).size > MAX_COMMAND_BYTES) return undefined;
+    return readFileSync(path, "utf8");
+  } catch {
+    return undefined;
+  }
+}
+
 function getCommandDescription(path: string): string {
-  const raw = readFileSync(path, "utf8");
-  const frontmatterDescription = readFrontmatterDescription(raw);
-  if (frontmatterDescription) return frontmatterDescription;
+  try {
+    const raw = readClaudeCommandFile(path);
+    if (raw === undefined) return "Run a project-local Claude command through Pi.";
 
-  const body = stripFrontmatter(raw);
-  const firstLine = body
-    .split("\n")
-    .map((line) => line.trim())
-    .find((line) => line.length > 0 && !line.startsWith("#"));
+    const frontmatterDescription = readFrontmatterDescription(raw);
+    if (frontmatterDescription) return frontmatterDescription;
 
-  return firstLine ?? "Run a project-local Claude command through Pi.";
+    const body = stripFrontmatter(raw);
+    const firstLine = body
+      .split("\n")
+      .map((line) => line.trim())
+      .find((line) => line.length > 0 && !line.startsWith("#"));
+
+    return firstLine ?? "Run a project-local Claude command through Pi.";
+  } catch {
+    return "Run a project-local Claude command through Pi.";
+  }
 }
 
 export function buildClaudeCommandPrompt(commandName: string, commandPath: string, args: string): string {
-  const raw = readFileSync(commandPath, "utf8");
-  const body = stripFrontmatter(raw).trim();
+  const raw = readClaudeCommandFile(commandPath);
+  const body = raw === undefined
+    ? "[Command file could not be read or exceeded the adapter size limit.]"
+    : stripFrontmatter(raw).trim();
+
   const renderedBody = body
     .replaceAll("$ARGUMENTS", args)
     .replaceAll("$1", args.split(/\s+/)[0] ?? "")
@@ -87,6 +115,8 @@ export function registerClaudeCommandsForProject(
     pi.registerCommand(piCommandName, {
       description: getCommandDescription(command.path),
       handler: async (args, ctx) => {
+        if (!isProjectTrusted(ctx)) return;
+
         const commandPath = getClaudeCommandPath(ctx.cwd, command.name, resolveProject);
         if (!commandPath) {
           ctx.ui.notify(`No .claude command found for /${command.name} in this project.`, "info");

@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readFileSync, statSync } from "node:fs";
 import { basename } from "node:path";
 import { MAX_RULE_BYTES } from "./config";
 import type { ClaudeProject } from "./project";
@@ -17,8 +17,32 @@ export function readClaudeRules(project: ClaudeProject): string | undefined {
   const sections: string[] = [];
 
   for (const file of files) {
-    const content = readFileSync(file, "utf8");
-    const bytes = Buffer.byteLength(content, "utf8");
+      const remainingBytes = MAX_RULE_BYTES - usedBytes;
+      if (remainingBytes <= 0) break;
+
+      try {
+        // Check the size before reading so a very large repository rule cannot
+        // consume unbounded memory merely by being discovered.
+        if (statSync(file).size > remainingBytes) {
+          sections.push(
+            `## ${basename(file)}\n\n[Skipped: Claude rules exceeded ${MAX_RULE_BYTES} bytes adapter limit.]`,
+          );
+          break;
+        }
+      } catch {
+        // Rule files may be removed or replaced while Pi is running.
+        continue;
+      }
+
+      let content: string;
+      try {
+        content = readFileSync(file, "utf8");
+      } catch {
+        // Rule files may be removed or replaced while Pi is running.
+        continue;
+      }
+
+      const bytes = Buffer.byteLength(content, "utf8");
 
     if (usedBytes + bytes > MAX_RULE_BYTES) {
       sections.push(
@@ -30,6 +54,8 @@ export function readClaudeRules(project: ClaudeProject): string | undefined {
     usedBytes += bytes;
     sections.push(`## ${basename(file)}\n\n${content.trim()}`);
   }
+
+  if (sections.length === 0) return undefined;
 
   return [
     "# Imported Claude Project Rules",

@@ -1,6 +1,7 @@
 import { existsSync, readdirSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
+import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
 
 export type ClaudeProject = {
   root: string;
@@ -38,7 +39,7 @@ export function findClaudeProject(startDir: string): ClaudeProject | undefined {
     // ~/.claude is Claude Code's user-level configuration, not a project-local
     // .claude directory. Do not let sessions opened under nested repos (for
     // example ~/.config) accidentally inherit it while walking upward.
-    if (current !== home && existsSync(claudeDir) && statSync(claudeDir).isDirectory()) {
+    if (current !== home && isDirectory(claudeDir)) {
       return {
         root: current,
         claudeDir,
@@ -51,8 +52,7 @@ export function findClaudeProject(startDir: string): ClaudeProject | undefined {
 
     // Stop at repository boundaries. A parent directory's .claude belongs to a
     // different project/user scope and should not bleed into this workspace.
-    const gitPath = join(current, ".git");
-    if (existsSync(gitPath)) return undefined;
+    if (exists(join(current, ".git"))) return undefined;
 
     const parent = dirname(current);
     if (parent === current) return undefined;
@@ -61,18 +61,46 @@ export function findClaudeProject(startDir: string): ClaudeProject | undefined {
 }
 
 export function listMarkdownFiles(dir: string): string[] {
-  if (!existsSync(dir) || !statSync(dir).isDirectory()) return [];
+  try {
+    if (!statSync(dir).isDirectory()) return [];
 
-  return readdirSync(dir)
-    .filter((entry) => entry.endsWith(".md"))
-    .map((entry) => join(dir, entry))
-    .sort((a, b) => basename(a).localeCompare(basename(b)));
+    return readdirSync(dir)
+      .filter((entry) => entry.endsWith(".md"))
+      .map((entry) => join(dir, entry))
+      .sort((a, b) => basename(a).localeCompare(b));
+  } catch {
+    return [];
+  }
 }
 
 export function isDirectory(path: string): boolean {
-  return existsSync(path) && statSync(path).isDirectory();
+  try {
+    return statSync(path).isDirectory();
+  } catch {
+    return false;
+  }
 }
 
 export function isFile(path: string): boolean {
-  return existsSync(path) && statSync(path).isFile();
+  try {
+    return statSync(path).isFile();
+  } catch {
+    return false;
+  }
+}
+
+export function isProjectTrusted(ctx: Pick<ExtensionContext, "isProjectTrusted">): boolean {
+  try {
+    return ctx.isProjectTrusted();
+  } catch {
+    return false;
+  }
+}
+
+function exists(path: string): boolean {
+  try {
+    return existsSync(path);
+  } catch {
+    return false;
+  }
 }

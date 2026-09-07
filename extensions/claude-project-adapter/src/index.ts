@@ -1,7 +1,11 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { registerClaudeCommandsForProject } from "./commands";
 import { registerClaudePreToolUseHooks } from "./hooks";
-import { createClaudeProjectResolver, isDirectory } from "./project";
+import {
+  createClaudeProjectResolver,
+  isDirectory,
+  isProjectTrusted,
+} from "./project";
 import { injectClaudeRules, readClaudeRules } from "./rules";
 
 export default function claudeProjectAdapter(pi: ExtensionAPI) {
@@ -15,6 +19,8 @@ export default function claudeProjectAdapter(pi: ExtensionAPI) {
 
   pi.on("session_start", async (_event, ctx) => {
     resolveProject.clear();
+    if (!isProjectTrusted(ctx)) return;
+
     const project = resolveProject(ctx.cwd);
     if (!project) return;
 
@@ -22,6 +28,8 @@ export default function claudeProjectAdapter(pi: ExtensionAPI) {
   });
 
   pi.on("resources_discover", async (_event, ctx) => {
+    if (!isProjectTrusted(ctx)) return;
+
     const project = resolveProject(ctx.cwd);
     if (!project) return;
 
@@ -35,6 +43,8 @@ export default function claudeProjectAdapter(pi: ExtensionAPI) {
   });
 
   pi.on("before_agent_start", async (event, ctx) => {
+    if (!isProjectTrusted(ctx)) return;
+
     const project = resolveProject(ctx.cwd);
     if (!project) return;
 

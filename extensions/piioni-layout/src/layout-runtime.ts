@@ -5,6 +5,7 @@ import type {
 } from "@earendil-works/pi-coding-agent";
 import { createWorkspaceStateStore } from "../../shared/workspace-state/store";
 import { buildLayoutSnapshot, type LayoutSnapshot } from "./layout-state";
+import { createWorkspaceRefreshScheduler } from "./workspace-refresh";
 
 interface LayoutRuntime {
   startSession(ctx: ExtensionContext): void;
@@ -23,6 +24,9 @@ export function createLayoutRuntime(pi: ExtensionAPI): LayoutRuntime {
   let unsubscribeWorkspace: (() => void) | undefined;
   const listeners = new Set<() => void>();
   const workspaceStore = createWorkspaceStateStore();
+  const workspaceRefresh = createWorkspaceRefreshScheduler(async (cwd) => {
+    await workspaceStore.refresh(cwd);
+  });
 
   const notify = () => {
     for (const listener of listeners) listener();
@@ -57,6 +61,8 @@ export function createLayoutRuntime(pi: ExtensionAPI): LayoutRuntime {
 
       unsubscribeWorkspace?.();
       unsubscribeWorkspace = workspaceStore.subscribe(() => {
+        // Do not render an older lookup after a newer workspace refresh was requested.
+        if (workspaceRefresh.hasNewerRequest()) return;
         rebuildSnapshot();
         notify();
       });
@@ -75,7 +81,7 @@ export function createLayoutRuntime(pi: ExtensionAPI): LayoutRuntime {
 
     async refreshWorkspace(ctx = currentContext) {
       if (!ctx) return;
-      await workspaceStore.refresh(ctx.cwd);
+      await workspaceRefresh.request(ctx.cwd);
     },
 
     captureFooterData(footerData) {
@@ -94,6 +100,7 @@ export function createLayoutRuntime(pi: ExtensionAPI): LayoutRuntime {
     },
 
     shutdown() {
+      workspaceRefresh.shutdown();
       currentContext = undefined;
       currentSnapshot = undefined;
       lastFooterData = undefined;
