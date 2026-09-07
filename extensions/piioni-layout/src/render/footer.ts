@@ -21,10 +21,8 @@ import {
 } from "./responsive";
 import type { PermissionMode, RenderableTui, WidgetComponent } from "../types";
 
-function formatModeLabel(mode: PermissionMode): string {
-	if (mode === "Palantír") return `👁  ${mode}`;
-	if (mode === "Mithril Forge") return `⛏  ${mode}`;
-	return `🜏  ${mode}`;
+function formatModeLabel(_mode: PermissionMode): string {
+	return "Default";
 }
 
 function formatMetricTokens(value: number | undefined): string {

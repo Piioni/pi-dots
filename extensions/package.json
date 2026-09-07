@@ -1,0 +1,7 @@
+{
+  "private": true,
+  "scripts": {
+    "typecheck": "./verify-types.sh",
+    "test": "npm run typecheck && npm test --prefix piioni-layout"
+  }
+}

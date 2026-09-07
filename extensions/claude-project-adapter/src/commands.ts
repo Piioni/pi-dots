@@ -3,7 +3,7 @@ import { basename, join } from "node:path";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { ALLOWED_CLAUDE_COMMAND_NAMES, RESERVED_PI_COMMAND_NAMES } from "./config";
 import { readFrontmatterDescription, stripFrontmatter } from "./frontmatter";
-import type { ClaudeProject } from "./project";
+import type { ClaudeProject, ClaudeProjectResolver } from "./project";
 import { findClaudeProject, isDirectory, isFile, listMarkdownFiles } from "./project";
 
 export function getClaudeCommandFiles(project: ClaudeProject): Array<{ name: string; path: string }> {
@@ -19,8 +19,12 @@ export function piCommandNameForClaudeCommand(commandName: string): string {
   return RESERVED_PI_COMMAND_NAMES.has(commandName) ? `sipos-${commandName}` : commandName;
 }
 
-function getClaudeCommandPath(startDir: string, commandName: string): string | undefined {
-  const project = findClaudeProject(startDir);
+function getClaudeCommandPath(
+  startDir: string,
+  commandName: string,
+  resolveProject: ClaudeProjectResolver,
+): string | undefined {
+  const project = resolveProject(startDir);
   if (!project) return undefined;
 
   const path = join(project.commandsDir, `${commandName}.md`);
@@ -71,6 +75,7 @@ export function registerClaudeCommandsForProject(
   pi: ExtensionAPI,
   project: ClaudeProject,
   registeredCommandNames: Set<string>,
+  resolveProject: ClaudeProjectResolver = findClaudeProject,
 ): void {
   for (const command of getClaudeCommandFiles(project)) {
     if (!ALLOWED_CLAUDE_COMMAND_NAMES.has(command.name)) continue;
@@ -82,7 +87,7 @@ export function registerClaudeCommandsForProject(
     pi.registerCommand(piCommandName, {
       description: getCommandDescription(command.path),
       handler: async (args, ctx) => {
-        const commandPath = getClaudeCommandPath(ctx.cwd, command.name);
+        const commandPath = getClaudeCommandPath(ctx.cwd, command.name, resolveProject);
         if (!commandPath) {
           ctx.ui.notify(`No .claude command found for /${command.name} in this project.`, "info");
           return;

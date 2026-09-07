@@ -1,7 +1,7 @@
 import type { PermissionModeName } from "./types";
 
-export const PERMISSION_MODE_NAMES = ["Palantír", "Mithril Forge", "Balrog"] as const satisfies readonly PermissionModeName[];
+export const PERMISSION_MODE_NAMES = ["default"] as const satisfies readonly PermissionModeName[];
 
 export function isPermissionModeName(value: unknown): value is PermissionModeName {
-  return typeof value === "string" && PERMISSION_MODE_NAMES.includes(value as PermissionModeName);
+  return value === PERMISSION_MODE_NAMES[0];
 }

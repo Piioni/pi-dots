@@ -4,6 +4,11 @@ import { MAX_RULE_BYTES } from "./config";
 import type { ClaudeProject } from "./project";
 import { listMarkdownFiles } from "./project";
 
+export function injectClaudeRules(systemPrompt: string, rules: string): string {
+  if (systemPrompt.includes(rules)) return systemPrompt;
+  return `${systemPrompt}\n\n${rules}`;
+}
+
 export function readClaudeRules(project: ClaudeProject): string | undefined {
   const files = listMarkdownFiles(project.rulesDir);
   if (files.length === 0) return undefined;

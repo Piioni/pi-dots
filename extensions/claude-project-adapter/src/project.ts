@@ -11,6 +11,23 @@ export type ClaudeProject = {
   settingsPath: string;
 };
 
+export type ClaudeProjectResolver = (startDir: string) => ClaudeProject | undefined;
+export type CachedClaudeProjectResolver = ClaudeProjectResolver & { clear(): void };
+
+export function createClaudeProjectResolver(): CachedClaudeProjectResolver {
+  const cache = new Map<string, ClaudeProject | undefined>();
+  const resolver = ((startDir: string) => {
+    const normalizedStartDir = resolve(startDir);
+    if (!cache.has(normalizedStartDir)) {
+      cache.set(normalizedStartDir, findClaudeProject(normalizedStartDir));
+    }
+    return cache.get(normalizedStartDir);
+  }) as CachedClaudeProjectResolver;
+
+  resolver.clear = () => cache.clear();
+  return resolver;
+}
+
 export function findClaudeProject(startDir: string): ClaudeProject | undefined {
   let current = resolve(startDir);
   const home = resolve(homedir());

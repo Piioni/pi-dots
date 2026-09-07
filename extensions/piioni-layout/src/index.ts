@@ -14,9 +14,9 @@ function safeSetLayout(
 	activeTuis: Set<RenderableTui>,
 	getSnapshot: () => LayoutSnapshot,
 	refreshSnapshot: (footerData?: ReadonlyFooterDataProvider) => void,
-): void {
-	if (!ctx.hasUI || ctx.mode !== "tui") return;
-	if (typeof ctx.ui?.setWidget !== "function") return;
+): boolean {
+	if (!ctx.hasUI || ctx.mode !== "tui") return false;
+	if (typeof ctx.ui?.setWidget !== "function") return false;
 
 	try {
 		ctx.ui.setWidget("piioni-layout-cwd", (tui) => {
@@ -29,14 +29,17 @@ function safeSetLayout(
 				makeFooter(ctx, activeTuis, getSnapshot, refreshSnapshot),
 			);
 		}
+		return true;
 	} catch {
 		// Non-TUI modes or older UI implementations should keep running without layout changes.
+		return false;
 	}
 }
 
 export default function piioniLayout(pi: ExtensionAPI) {
 	const runtime = createLayoutRuntime(pi);
 	const activeTuis = new Set<RenderableTui>();
+	let layoutInstalled = false;
 
 	const requestRender = () => {
 		for (const tui of activeTuis) tui.requestRender();
@@ -46,7 +49,9 @@ export default function piioniLayout(pi: ExtensionAPI) {
 
 	pi.on("session_start", (_event, ctx) => {
 		runtime.startSession(ctx);
-		safeSetLayout(
+		if (layoutInstalled) return;
+
+		layoutInstalled = safeSetLayout(
 			ctx,
 			activeTuis,
 			() => runtime.getSnapshot(),
@@ -72,7 +77,9 @@ export default function piioniLayout(pi: ExtensionAPI) {
 	});
 
 	pi.on("session_shutdown", (_event, ctx) => {
+		layoutInstalled = false;
 		runtime.shutdown();
+		activeTuis.clear();
 
 		try {
 			ctx.ui.setWidget("piioni-layout-cwd", undefined);

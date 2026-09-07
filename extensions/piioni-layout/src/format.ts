@@ -1,7 +1,7 @@
 import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
 
 // Re-export shared formatting utilities from the canonical source
-export { stripAnsi, formatTokens, formatCost } from "../../shared/dashboard-state/format";
+export { stripAnsi, formatTokens, formatCost } from "../../shared/dashboard-state/format.ts";
 
 export function widthOf(text: string): number {
   return visibleWidth(text);

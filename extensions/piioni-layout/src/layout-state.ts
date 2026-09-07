@@ -12,7 +12,7 @@ import type {
   DashboardRuntimeSnapshot,
 } from "../../shared/dashboard-state/types";
 import type { WorkspaceStateSnapshot } from "../../shared/workspace-state/types";
-import { getInitialPermissionMode, getPermissionModeAPI } from "./permission-mode";
+import { getInitialPermissionMode } from "./permission-mode";
 import type { PermissionMode } from "./types";
 
 export const LAYOUT_STATE_CUSTOM_TYPE = "piioni-layout-state";
@@ -32,9 +32,7 @@ export interface LayoutSnapshot {
 }
 
 function normalizePermissionMode(value: unknown): PermissionMode | undefined {
-  return value === "Palantír" || value === "Mithril Forge" || value === "Balrog"
-    ? value
-    : undefined;
+  return value === "default" ? value : undefined;
 }
 
 function getLastSessionMode(ctx: ExtensionContext): PermissionMode | undefined {
@@ -66,7 +64,7 @@ export function appendLayoutState(pi: ExtensionAPI, mode: PermissionMode): void 
 }
 
 export function resolveInitialMode(ctx: ExtensionContext): PermissionMode {
-  return getPermissionModeAPI()?.getMode() ?? getLastSessionMode(ctx) ?? getInitialPermissionMode();
+  return getLastSessionMode(ctx) ?? getInitialPermissionMode();
 }
 
 export function buildLayoutSnapshot(

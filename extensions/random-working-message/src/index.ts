@@ -56,6 +56,12 @@ function buildColorWave(
 export default function (pi: ExtensionAPI) {
 	let interval: ReturnType<typeof setInterval> | null = null;
 
+		const stopAnimation = () => {
+			if (interval === null) return;
+			clearInterval(interval);
+			interval = null;
+		};
+
 	pi.on("agent_start", async (_event, ctx) => {
 		const message = pickRandom(WORKING_MESSAGES);
 		const baseColor = pickRandom(MOCHA_COLORS);
@@ -78,6 +84,8 @@ export default function (pi: ExtensionAPI) {
 
 		render();
 
+		stopAnimation();
+
 		interval = setInterval(() => {
 			wavePhase++;
 			const now = Date.now();
@@ -91,9 +99,10 @@ export default function (pi: ExtensionAPI) {
 	});
 
 	pi.on("agent_end", async () => {
-		if (interval !== null) {
-			clearInterval(interval);
-			interval = null;
-		}
+		stopAnimation();
+	});
+
+	pi.on("session_shutdown", async () => {
+		stopAnimation();
 	});
 }

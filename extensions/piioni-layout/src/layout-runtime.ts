@@ -5,12 +5,10 @@ import type {
 } from "@earendil-works/pi-coding-agent";
 import { createWorkspaceStateStore } from "../../shared/workspace-state/store";
 import {
-  appendLayoutState,
   buildLayoutSnapshot,
   resolveInitialMode,
   type LayoutSnapshot,
 } from "./layout-state";
-import { getPermissionModeAPI } from "./permission-mode";
 import type { PermissionMode } from "./types";
 
 interface LayoutRuntime {
@@ -24,11 +22,10 @@ interface LayoutRuntime {
 }
 
 export function createLayoutRuntime(pi: ExtensionAPI): LayoutRuntime {
-  let currentMode: PermissionMode = "Palantír";
+  let currentMode: PermissionMode = "default";
   let currentSnapshot: LayoutSnapshot | undefined;
   let currentContext: ExtensionContext | undefined;
   let lastFooterData: ReadonlyFooterDataProvider | undefined;
-  let unsubscribePermissionMode: (() => void) | undefined;
   let unsubscribeWorkspace: (() => void) | undefined;
   const listeners = new Set<() => void>();
   const workspaceStore = createWorkspaceStateStore();
@@ -53,23 +50,6 @@ export function createLayoutRuntime(pi: ExtensionAPI): LayoutRuntime {
 
   const setContextState = (ctx: ExtensionContext) => {
     currentContext = ctx;
-    currentMode = getPermissionModeAPI()?.getMode() ?? currentMode;
-  };
-
-  const subscribePermissionMode = (ctx: ExtensionContext) => {
-    unsubscribePermissionMode?.();
-    unsubscribePermissionMode = undefined;
-
-    const api = getPermissionModeAPI();
-    if (!api) return;
-
-    currentMode = api.getMode();
-    unsubscribePermissionMode = api.subscribe((mode) => {
-      currentMode = mode;
-      rebuildSnapshot(ctx);
-      appendLayoutState(pi, mode);
-      notify();
-    });
   };
 
   return {
@@ -89,7 +69,6 @@ export function createLayoutRuntime(pi: ExtensionAPI): LayoutRuntime {
         notify();
       });
 
-      subscribePermissionMode(ctx);
       rebuildSnapshot(ctx);
       notify();
       void this.refreshWorkspace(ctx);
@@ -126,8 +105,6 @@ export function createLayoutRuntime(pi: ExtensionAPI): LayoutRuntime {
       currentContext = undefined;
       currentSnapshot = undefined;
       lastFooterData = undefined;
-      unsubscribePermissionMode?.();
-      unsubscribePermissionMode = undefined;
       unsubscribeWorkspace?.();
       unsubscribeWorkspace = undefined;
     },

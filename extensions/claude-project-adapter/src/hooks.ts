@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { DEFAULT_HOOK_TIMEOUT_SECONDS, PI_TOOL_NAMES, type PiToolName } from "./config";
-import type { ClaudeProject } from "./project";
+import type { ClaudeProject, ClaudeProjectResolver } from "./project";
 import { findClaudeProject, isFile } from "./project";
 
 type ClaudeCommandHook = {
@@ -183,11 +183,14 @@ async function runClaudePreToolUseHooks(
   }
 }
 
-export function registerClaudePreToolUseHooks(pi: ExtensionAPI): void {
+export function registerClaudePreToolUseHooks(
+  pi: ExtensionAPI,
+  resolveProject: ClaudeProjectResolver = findClaudeProject,
+): void {
   pi.on("tool_call", async (event, ctx) => {
     if (!PI_TOOL_NAMES.has(event.toolName)) return;
 
-    const project = findClaudeProject(ctx.cwd);
+    const project = resolveProject(ctx.cwd);
     if (!project) return;
 
     try {

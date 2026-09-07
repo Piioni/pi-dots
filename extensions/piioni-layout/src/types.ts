@@ -8,4 +8,4 @@ export interface WidgetComponent {
   render(width: number): string[];
 }
 
-export type { PermissionModeName as PermissionMode, PermissionModeRuntimeAPI } from "../../shared/permission-mode/types";
+export type { PermissionModeName as PermissionMode } from "../../shared/permission-mode/types";

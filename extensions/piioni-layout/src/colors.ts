@@ -3,23 +3,11 @@ import type { PermissionMode } from "./types";
 
 const RESET = "\u001b[0m";
 
-const MODE_ANSI: Record<PermissionMode, string> = {
-  Palantír: "\u001b[36m",
-  "Mithril Forge": "\u001b[32m",
-  Balrog: "\u001b[31m",
-};
-
-const MODE_THEME_COLOR: Record<PermissionMode, "accent" | "success" | "error"> = {
-  Palantír: "accent",
-  "Mithril Forge": "success",
-  Balrog: "error",
-};
-
-export function colorMode(ctx: ExtensionContext, mode: PermissionMode, text: string): string {
+export function colorMode(ctx: ExtensionContext, _mode: PermissionMode, text: string): string {
   try {
-    return ctx.ui.theme.fg(MODE_THEME_COLOR[mode], text);
+    return ctx.ui.theme.fg("accent", text);
   } catch {
-    return `${MODE_ANSI[mode]}${text}${RESET}`;
+    return `\u001b[36m${text}${RESET}`;
   }
 }
 
