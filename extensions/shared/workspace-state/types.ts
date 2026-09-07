@@ -4,17 +4,6 @@ export interface PullRequestInfo {
   isDraft: boolean;
 }
 
-export interface GitStatusSummary {
-  conflicted: number;
-  ahead: number;
-  behind: number;
-  untracked: number;
-  modified: number;
-  staged: number;
-  renamed: number;
-  deleted: number;
-}
-
 export interface GitStateProgress {
   current?: number;
   total?: number;
@@ -27,9 +16,7 @@ export interface GitStateSummary {
 
 export interface WorkspaceStateSnapshot {
   cwd?: string;
-  isRepository: boolean;
   branch?: string;
   gitState?: GitStateSummary;
-  gitStatus?: GitStatusSummary;
   pullRequest?: PullRequestInfo | null;
 }

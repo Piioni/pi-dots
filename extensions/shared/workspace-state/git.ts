@@ -1,9 +1,6 @@
-import { execFile } from "node:child_process";
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
-import type { GitStateSummary, GitStatusSummary } from "./types";
-
-const GIT_STATUS_TIMEOUT_MS = 2_000;
+import type { GitStateSummary } from "./types";
 
 const MAX_REPO_WALK_DEPTH = 12;
 
@@ -58,21 +55,6 @@ export function getGitBranchFromCwd(cwd: string): string | undefined {
   return "detached";
 }
 
-function emptyGitStatusSummary(): GitStatusSummary {
-  return {
-    conflicted: 0,
-    ahead: 0,
-    behind: 0,
-    untracked: 0,
-    modified: 0,
-    staged: 0,
-    renamed: 0,
-    deleted: 0,
-  };
-}
-
-const CONFLICT_CODES = new Set(["DD", "AU", "UD", "UA", "DU", "AA", "UU"]);
-
 function readProgress(gitDir: string, currentPath: string, totalPath: string) {
   const current = Number(readTrimmed(join(gitDir, currentPath)));
   const total = Number(readTrimmed(join(gitDir, totalPath)));
@@ -108,60 +90,4 @@ export function getGitStateFromCwd(cwd: string): GitStateSummary | undefined {
   if (existsSync(join(gitDir, "BISECT_LOG"))) return { label: "BISECTING" };
 
   return undefined;
-}
-
-export async function getGitStatusFromCwd(cwd: string): Promise<GitStatusSummary> {
-  return new Promise((resolveStatus) => {
-    execFile(
-      "git",
-      ["status", "--porcelain=v1", "--branch"],
-      { cwd, timeout: GIT_STATUS_TIMEOUT_MS },
-      (error, stdout) => {
-        if (error) {
-          resolveStatus(emptyGitStatusSummary());
-          return;
-        }
-
-        const summary = emptyGitStatusSummary();
-        const lines = stdout.split("\n").map((line) => line.trimEnd()).filter(Boolean);
-
-        for (const line of lines) {
-          if (line.startsWith("## ")) {
-            const aheadMatch = line.match(/ahead (\d+)/);
-            const behindMatch = line.match(/behind (\d+)/);
-            summary.ahead = aheadMatch ? Number(aheadMatch[1]) : 0;
-            summary.behind = behindMatch ? Number(behindMatch[1]) : 0;
-            continue;
-          }
-
-          const code = line.slice(0, 2);
-          const indexStatus = code[0];
-          const worktreeStatus = code[1];
-
-          if (code === "??") {
-            summary.untracked += 1;
-            continue;
-          }
-
-          if (CONFLICT_CODES.has(code)) {
-            summary.conflicted += 1;
-            continue;
-          }
-
-          if (indexStatus === "R" || worktreeStatus === "R") summary.renamed += 1;
-          if (indexStatus === "D" || worktreeStatus === "D") summary.deleted += 1;
-          if (worktreeStatus === "M" || worktreeStatus === "T") summary.modified += 1;
-          if (
-            indexStatus !== " " &&
-            indexStatus !== "?" &&
-            indexStatus !== "U"
-          ) {
-            summary.staged += 1;
-          }
-        }
-
-        resolveStatus(summary);
-      },
-    );
-  });
 }

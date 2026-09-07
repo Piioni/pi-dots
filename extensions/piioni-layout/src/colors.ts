@@ -1,15 +1,5 @@
 import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
-import type { PermissionMode } from "./types";
-
 const RESET = "\u001b[0m";
-
-export function colorMode(ctx: ExtensionContext, _mode: PermissionMode, text: string): string {
-  try {
-    return ctx.ui.theme.fg("accent", text);
-  } catch {
-    return `\u001b[36m${text}${RESET}`;
-  }
-}
 
 export function colorText(ctx: ExtensionContext, text: string): string {
   try {
@@ -80,18 +70,6 @@ export function colorThinking(ctx: ExtensionContext, thinking: string): string {
   } catch {
     return colorDim(ctx, thinking);
   }
-}
-
-export function colorContextUsage(
-  ctx: ExtensionContext,
-  percent: number | undefined,
-  text: string,
-): string {
-  if (typeof percent !== "number") return colorDim(ctx, text);
-  if (percent >= 90) return colorStatus(ctx, "error", text);
-  if (percent >= 75) return colorStatus(ctx, "warning", text);
-  if (percent >= 50) return colorStatus(ctx, "accent", text);
-  return colorStatus(ctx, "success", text);
 }
 
 export function colorPeach(ctx: ExtensionContext, text: string): string {

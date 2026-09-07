@@ -6,46 +6,28 @@ import {
   selectResponsiveHeader,
 } from "./responsive.ts";
 
-test("header keeps all parts when width allows", () => {
+test("header keeps branch and git state when width allows", () => {
   const decision = selectResponsiveHeader({
     width: 48,
     cwd: "/workspace/project",
     branch: "branch",
     gitState: "MERGING",
-    gitStatus: "+1 !2",
   });
 
   assert.equal(decision.branch, "branch");
   assert.equal(decision.gitState, "MERGING");
-  assert.equal(decision.gitStatus, "+1 !2");
 });
 
-test("header drops git status before git state and branch", () => {
-  const decision = selectResponsiveHeader({
-    width: 30,
-    cwd: "/workspace/project",
-    branch: "branch",
-    gitState: "MERGING",
-    gitStatus: "+1 !2",
-  });
-
-  assert.equal(decision.branch, "branch");
-  assert.equal(decision.gitState, "MERGING");
-  assert.equal(decision.gitStatus, undefined);
-});
-
-test("header drops git state after git status when still constrained", () => {
+test("header drops git state when constrained", () => {
   const decision = selectResponsiveHeader({
     width: 25,
     cwd: "/workspace/project",
     branch: "branch",
     gitState: "MERGING",
-    gitStatus: "+1 !2",
   });
 
   assert.equal(decision.branch, "branch");
   assert.equal(decision.gitState, undefined);
-  assert.equal(decision.gitStatus, undefined);
 });
 
 test("header collapses to cwd only when width is narrow", () => {
@@ -54,12 +36,10 @@ test("header collapses to cwd only when width is narrow", () => {
     cwd: "/workspace/project",
     branch: "branch",
     gitState: "MERGING",
-    gitStatus: "+1 !2",
   });
 
   assert.equal(decision.branch, undefined);
   assert.equal(decision.gitState, undefined);
-  assert.equal(decision.gitStatus, undefined);
 });
 
 test("footer primary keeps PR and context when both fit", () => {

@@ -1,4 +1,4 @@
-import { getGitBranchFromCwd, getGitStateFromCwd, getGitStatusFromCwd } from "./git";
+import { getGitBranchFromCwd, getGitStateFromCwd } from "./git";
 import { getOpenPullRequestForBranch } from "./github";
 import type { WorkspaceStateSnapshot } from "./types";
 
@@ -13,7 +13,7 @@ function snapshotsEqual(a: WorkspaceStateSnapshot, b: WorkspaceStateSnapshot): b
 }
 
 export function createWorkspaceStateStore(): WorkspaceStateStore {
-  let snapshot: WorkspaceStateSnapshot = { isRepository: false };
+  let snapshot: WorkspaceStateSnapshot = {};
   let generation = 0;
   let inFlight: Promise<void> | undefined;
   let pendingCwd: string | undefined;
@@ -47,32 +47,29 @@ export function createWorkspaceStateStore(): WorkspaceStateStore {
         const branch = getGitBranchFromCwd(cwd);
 
         if (!branch) {
-          setSnapshot({ cwd, isRepository: false, branch: undefined, gitState: undefined, gitStatus: undefined, pullRequest: null });
+          setSnapshot({ cwd, branch: undefined, gitState: undefined, pullRequest: null });
           return;
         }
 
         const gitState = getGitStateFromCwd(cwd);
-        const gitStatus = await getGitStatusFromCwd(cwd);
         if (runGeneration !== generation) return;
 
         setSnapshot({
           cwd,
-          isRepository: true,
           branch,
           gitState,
-          gitStatus,
           pullRequest: snapshot.branch === branch ? snapshot.pullRequest ?? null : null,
         });
 
         if (branch === "detached") {
-          setSnapshot({ cwd, isRepository: true, branch, gitState, gitStatus, pullRequest: null });
+          setSnapshot({ cwd, branch, gitState, pullRequest: null });
           return;
         }
 
         const pullRequest = await getOpenPullRequestForBranch(cwd, branch);
         if (runGeneration !== generation) return;
 
-        setSnapshot({ cwd, isRepository: true, branch, gitState, gitStatus, pullRequest });
+        setSnapshot({ cwd, branch, gitState, pullRequest });
       };
 
       const pending = run().finally(() => {

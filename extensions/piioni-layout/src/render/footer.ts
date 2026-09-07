@@ -3,8 +3,8 @@ import type {
 	ReadonlyFooterDataProvider,
 } from "@earendil-works/pi-coding-agent";
 import {
-	colorDim,
-	colorMode,
+	colorCwd,
+	colorGit,
 	colorPeach,
 	colorSapphire,
 	colorStatus,
@@ -18,11 +18,41 @@ import { buildExtensionStatusFromSnapshot } from "../status";
 import {
 	selectResponsiveFooterPrimary,
 	selectResponsiveFooterTokens,
+	selectResponsiveHeader,
 } from "./responsive";
-import type { PermissionMode, RenderableTui, WidgetComponent } from "../types";
+import type { RenderableTui, WidgetComponent } from "../types";
 
-function formatModeLabel(_mode: PermissionMode): string {
-	return "Default";
+function buildGitStateText(snapshot: LayoutSnapshot): string {
+	const gitState = snapshot.workspace.gitState;
+	if (!gitState) return "";
+
+	const progress = gitState.progress?.current && gitState.progress?.total
+		? ` ${gitState.progress.current}/${gitState.progress.total}`
+		: "";
+
+	return `${gitState.label}${progress}`;
+}
+
+function buildWorkspaceSummary(
+	ctx: ExtensionContext,
+	snapshot: LayoutSnapshot,
+	width: number,
+): string {
+	const decision = selectResponsiveHeader({
+		width,
+		cwd: snapshot.cwd,
+		branch: snapshot.workspace.branch ? ` ${snapshot.workspace.branch}` : undefined,
+		gitState: buildGitStateText(snapshot) || undefined,
+	});
+	const parts = [colorCwd(ctx, decision.cwd)];
+
+	if (decision.branch || decision.gitState) {
+		parts.push(colorText(ctx, "->"));
+	}
+	if (decision.branch) parts.push(colorGit(ctx, decision.branch));
+	if (decision.gitState) parts.push(colorPeach(ctx, decision.gitState));
+
+	return parts.join(" ");
 }
 
 function formatMetricTokens(value: number | undefined): string {
@@ -183,11 +213,14 @@ export function makeFooter(
 				refreshSnapshot(footerData);
 				const snapshot = getSnapshot();
 				const runtime = snapshot.dashboard.runtime;
-				const left = [
-					colorMode(ctx, snapshot.mode, formatModeLabel(snapshot.mode)),
-					`${colorText(ctx, runtime.modelId)} ${colorDim(ctx, runtime.providerId)}`,
-					colorThinking(ctx, runtime.thinkingLevel),
-				].join(" • ");
+				const model = colorText(ctx, runtime.modelId);
+				const thinking = colorThinking(ctx, runtime.thinkingLevel);
+				const workspaceWidth = Math.max(
+					1,
+					width - widthOf(`${model} • ${thinking}`) - widthOf(" • "),
+				);
+				const workspace = buildWorkspaceSummary(ctx, snapshot, workspaceWidth);
+				const left = `${workspace} • ${model} • ${thinking}`;
 				const contextSummary = buildContextSummary(ctx, runtime);
 				const pullRequestSummary = snapshot.workspace.pullRequest
 					? colorText(

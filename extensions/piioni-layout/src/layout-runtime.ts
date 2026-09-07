@@ -4,12 +4,7 @@ import type {
   ReadonlyFooterDataProvider,
 } from "@earendil-works/pi-coding-agent";
 import { createWorkspaceStateStore } from "../../shared/workspace-state/store";
-import {
-  buildLayoutSnapshot,
-  resolveInitialMode,
-  type LayoutSnapshot,
-} from "./layout-state";
-import type { PermissionMode } from "./types";
+import { buildLayoutSnapshot, type LayoutSnapshot } from "./layout-state";
 
 interface LayoutRuntime {
   startSession(ctx: ExtensionContext): void;
@@ -22,7 +17,6 @@ interface LayoutRuntime {
 }
 
 export function createLayoutRuntime(pi: ExtensionAPI): LayoutRuntime {
-  let currentMode: PermissionMode = "default";
   let currentSnapshot: LayoutSnapshot | undefined;
   let currentContext: ExtensionContext | undefined;
   let lastFooterData: ReadonlyFooterDataProvider | undefined;
@@ -42,7 +36,6 @@ export function createLayoutRuntime(pi: ExtensionAPI): LayoutRuntime {
     currentSnapshot = buildLayoutSnapshot(
       ctx,
       pi,
-      currentMode,
       workspaceStore.getSnapshot(),
       footerData,
     );
@@ -60,7 +53,6 @@ export function createLayoutRuntime(pi: ExtensionAPI): LayoutRuntime {
 
     startSession(ctx) {
       setContextState(ctx);
-      currentMode = resolveInitialMode(ctx);
       lastFooterData = undefined;
 
       unsubscribeWorkspace?.();

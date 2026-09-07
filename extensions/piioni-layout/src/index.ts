@@ -5,7 +5,6 @@ import type {
 } from "@earendil-works/pi-coding-agent";
 import { createLayoutRuntime } from "./layout-runtime";
 import type { LayoutSnapshot } from "./layout-state";
-import { makeAboveEditorWidget } from "./render/above-editor";
 import { makeFooter } from "./render/footer";
 import type { RenderableTui } from "./types";
 
@@ -16,19 +15,12 @@ function safeSetLayout(
 	refreshSnapshot: (footerData?: ReadonlyFooterDataProvider) => void,
 ): boolean {
 	if (!ctx.hasUI || ctx.mode !== "tui") return false;
-	if (typeof ctx.ui?.setWidget !== "function") return false;
+	if (typeof ctx.ui?.setFooter !== "function") return false;
 
 	try {
-		ctx.ui.setWidget("piioni-layout-cwd", (tui) => {
-			activeTuis.add(tui);
-			return makeAboveEditorWidget(ctx, activeTuis, tui, getSnapshot);
-		});
-
-		if (typeof ctx.ui?.setFooter === "function") {
-			ctx.ui.setFooter(
-				makeFooter(ctx, activeTuis, getSnapshot, refreshSnapshot),
-			);
-		}
+		ctx.ui.setFooter(
+			makeFooter(ctx, activeTuis, getSnapshot, refreshSnapshot),
+		);
 		return true;
 	} catch {
 		// Non-TUI modes or older UI implementations should keep running without layout changes.
@@ -82,7 +74,6 @@ export default function piioniLayout(pi: ExtensionAPI) {
 		activeTuis.clear();
 
 		try {
-			ctx.ui.setWidget("piioni-layout-cwd", undefined);
 			ctx.ui.setStatus("piioni-layout", undefined);
 			if (typeof ctx.ui?.setFooter === "function") {
 				ctx.ui.setFooter(undefined);

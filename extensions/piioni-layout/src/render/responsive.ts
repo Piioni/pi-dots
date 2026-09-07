@@ -13,18 +13,16 @@ export interface HeaderResponsiveInput {
   cwd: string;
   branch?: string;
   gitState?: string;
-  gitStatus?: string;
 }
 
 export interface HeaderResponsiveDecision {
   cwd: string;
   branch?: string;
   gitState?: string;
-  gitStatus?: string;
 }
 
 interface HeaderPart {
-  key: "branch" | "gitState" | "gitStatus";
+  key: "branch" | "gitState";
   text: string;
 }
 
@@ -37,7 +35,6 @@ export function selectResponsiveHeader(input: HeaderResponsiveInput): HeaderResp
   const parts: HeaderPart[] = [
     input.branch ? { key: "branch", text: input.branch } : null,
     input.gitState ? { key: "gitState", text: input.gitState } : null,
-    input.gitStatus ? { key: "gitStatus", text: input.gitStatus } : null,
   ].filter((part): part is HeaderPart => part !== null);
 
   for (let keepCount = parts.length; keepCount >= 0; keepCount -= 1) {
@@ -52,7 +49,6 @@ export function selectResponsiveHeader(input: HeaderResponsiveInput): HeaderResp
       cwd: preferredCwd,
       branch: visibleParts.find((part) => part.key === "branch")?.text,
       gitState: visibleParts.find((part) => part.key === "gitState")?.text,
-      gitStatus: visibleParts.find((part) => part.key === "gitStatus")?.text,
     };
   }
 
