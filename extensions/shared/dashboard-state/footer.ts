@@ -1,4 +1,9 @@
-import type { DashboardExtensionsSnapshot, DashboardStatusPart } from "./types";
+import type {
+  DashboardExtensionsSnapshot,
+  DashboardLspStatus,
+  DashboardMcpStatus,
+  DashboardStatusPart,
+} from "./types";
 
 export interface FooterStatusProvider {
   getExtensionStatuses(): ReadonlyMap<string, string>;
@@ -36,8 +41,62 @@ function parseLspIds(raw: string): string[] {
     .filter(Boolean);
 }
 
+function decodeJsonStatus(raw: string): unknown {
+  try {
+    return JSON.parse(cleanStatus(raw));
+  } catch {
+    return undefined;
+  }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isStatusState(value: unknown): value is "healthy" | "partial" | "failed" | "off" {
+  return value === "healthy" || value === "partial" || value === "failed" || value === "off";
+}
+
+function isNonNegativeInteger(value: unknown): value is number {
+  return typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
+}
+
+function isStringArray(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((item) => typeof item === "string");
+}
+
+function decodeMcpStatus(raw: string): DashboardMcpStatus | undefined {
+  const value = decodeJsonStatus(raw);
+  if (!isRecord(value) || !isStatusState(value.state)) return undefined;
+  if (!isNonNegativeInteger(value.connected) || !isNonNegativeInteger(value.total)) return undefined;
+
+  return { state: value.state, connected: value.connected, total: value.total };
+}
+
+function decodeLspStatus(raw: string): DashboardLspStatus | undefined {
+  const value = decodeJsonStatus(raw);
+  if (!isRecord(value) || !isStatusState(value.state)) return undefined;
+  if (!isStringArray(value.active) || !isStringArray(value.failed)) return undefined;
+
+  return { state: value.state, active: value.active, failed: value.failed };
+}
+
 function parseMcpStatus(raw: string | undefined): DashboardStatusPart | undefined {
   if (!raw) return undefined;
+
+  const decoded = decodeMcpStatus(raw);
+  if (decoded) {
+    if (decoded.state === "off") return { text: "MCP off", tone: "dim" };
+    return {
+      text: `MCP ${decoded.connected}/${decoded.total}`,
+      tone:
+        decoded.state === "healthy"
+          ? "success"
+          : decoded.state === "failed"
+            ? "error"
+            : "accent",
+    };
+  }
 
   const clean = cleanStatus(raw);
   const servers = clean.match(/^MCP:\s*(\d+)\/(\d+)\s+servers?$/i);
@@ -66,8 +125,37 @@ function parseMcpAuthStatus(raw: string | undefined): DashboardStatusPart | unde
   return { text: "MCP auth", tone: "accent" };
 }
 
+function statusPartsForLsp(active: string[], failed: string[]): DashboardStatusPart[] {
+  const parts: DashboardStatusPart[] = [];
+  if (active.length) parts.push({ text: `LSP ${active.join(",")}`, tone: "success" });
+  if (failed.length) {
+    parts.push({
+      text: active.length ? `failed: ${failed.join(",")}` : `LSP failed: ${failed.join(",")}`,
+      tone: "error",
+    });
+  }
+  return parts;
+}
+
 function parseLspStatus(raw: string | undefined): DashboardStatusPart[] {
   if (!raw) return [];
+
+  const decoded = decodeLspStatus(raw);
+  if (decoded) {
+    if (decoded.state === "off") return [{ text: "LSP inactive", tone: "dim" }];
+
+    const parts = statusPartsForLsp(
+      decoded.active.flatMap(parseLspIds),
+      decoded.failed.flatMap(parseLspIds),
+    );
+    if (parts.length) return parts;
+    return [
+      {
+        text: decoded.state === "healthy" ? "LSP active" : "LSP failed",
+        tone: decoded.state === "healthy" ? "success" : "error",
+      },
+    ];
+  }
 
   const clean = cleanStatus(raw);
   if (/^LSP\s+Inactive$/i.test(clean)) return [{ text: "LSP inactive", tone: "dim" }];
@@ -86,15 +174,7 @@ function parseLspStatus(raw: string | undefined): DashboardStatusPart[] {
     if (failedMatch) failed.push(...parseLspIds(failedMatch[1]));
   }
 
-  const parts: DashboardStatusPart[] = [];
-  if (active.length) parts.push({ text: `LSP ${active.join(",")}`, tone: "success" });
-  if (failed.length) {
-    parts.push({
-      text: active.length ? `failed: ${failed.join(",")}` : `LSP failed: ${failed.join(",")}`,
-      tone: "error",
-    });
-  }
-
+  const parts = statusPartsForLsp(active, failed);
   return parts.length ? parts : [{ text: clean, tone: "dim" }];
 }
 

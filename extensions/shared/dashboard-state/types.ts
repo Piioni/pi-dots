@@ -27,3 +27,19 @@ export interface DashboardRuntimeSnapshot {
 export interface DashboardExtensionsSnapshot {
   parts: DashboardStatusPart[];
 }
+
+export type DashboardMcpState = "healthy" | "partial" | "failed" | "off";
+
+export interface DashboardMcpStatus {
+  state: DashboardMcpState;
+  connected: number;
+  total: number;
+}
+
+export type DashboardLspState = "healthy" | "partial" | "failed" | "off";
+
+export interface DashboardLspStatus {
+  state: DashboardLspState;
+  active: string[];
+  failed: string[];
+}
