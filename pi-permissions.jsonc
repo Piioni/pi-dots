@@ -11,13 +11,15 @@
     "grep": "allow",
     "find": "allow",
     "ls": "allow",
-    "ask_user_question": "allow",
     "todo": "allow",
     "write": "allow",
     "edit": "allow",
     "task": "allow",
+    "fetch_content": "allow",
+    "ask_user_question": "allow",
+
     "web_search": "ask",
-    "fetch_content": "ask",
+
     "read:**/.env": "deny",
     "read:**/.env.*": "deny",
     "read:**/*.pem": "deny",

@@ -2,7 +2,7 @@
   "defaultModel": "gpt-5.6-luna",
   "defaultProvider": "openai-codex",
   "defaultThinkingLevel": "high",
-  "editorPaddingX": 0,
+  "editorPaddingX": 1,
   "enableInstallTelemetry": false,
   "extensions": [],
   "lastChangelogVersion": "0.85.1",
@@ -47,11 +47,16 @@
   "steeringMode": "one-at-a-time",
   "terminal": {
     "clearOnShrink": true,
-    "showTerminalProgress": false
+    "showTerminalProgress": true
   },
   "theme": "catppuccin-mocha",
   "hideThinkingBlock": true,
   "showCacheMissNotices": true,
   "collapseChangelog": false,
-  "quietStartup": true
+  "quietStartup": false,
+  "autocompleteMaxVisible": 5,
+  "markdown": {
+    "mermaid": "streaming"
+  },
+  "tuiMode": "fullscreen"
 }

@@ -1,0 +1,13 @@
+{
+  "name": "moshi-permission-bridge",
+  "private": true,
+  "type": "module",
+  "devDependencies": {
+    "@earendil-works/pi-coding-agent": "0.85.1",
+    "@types/node": "^24.0.0",
+    "typescript": "^5.8.0"
+  },
+  "pi": {
+    "extensions": ["./index.ts"]
+  }
+}
