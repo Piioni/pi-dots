@@ -93,7 +93,7 @@ export default function moshiPermissionBridge(pi: ExtensionAPI): void {
   pi.on("agent_start", captureContext);
   pi.on("model_select", captureContext);
 
-  pi.events.on(PERMISSION_EVENT, (data) => {
+  pi.events.on(PERMISSION_EVENT, (data: unknown) => {
     if (!activeContext || !data || typeof data !== "object") return;
     forwardPermissionEvent(data as PermissionEvent, activeContext);
   });

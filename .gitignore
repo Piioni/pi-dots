@@ -20,3 +20,9 @@ npm/
 
 # Local Pi runtime state
 .atl/
+
+# Generated agent task records
+/gentle-agents/tasks/
+
+# Runtime configuration for installed extensions
+/extensions/pi-tool-display/config.json

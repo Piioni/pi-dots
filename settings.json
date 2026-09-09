@@ -10,7 +10,8 @@
   "packages": [
     {
       "extensions": [
-        "+extensions/gentle-ai.ts"
+        "+extensions/gentle-ai.ts",
+        "-extensions/quiet-tools.ts"
       ],
       "prompts": [
         "-prompts/gcl.md",
@@ -34,15 +35,14 @@
       ],
       "source": "npm:@hypabolic/pi-hypa"
     },
+    "npm:@juicesharp/rpiv-ask-user-question",
+    "npm:@monotykamary/pi-vcc@0.8.6",
+    "npm:pi-permission-system",
     "npm:pi-mcp-adapter",
     "npm:gentle-engram",
-    "npm:pi-subagents-j0k3r",
-    "npm:@juicesharp/rpiv-ask-user-question",
-    "npm:@juicesharp/rpiv-todo",
     "npm:pi-web-access",
     "npm:pi-lens",
-    "npm:pi-permission-system",
-    "npm:@monotykamary/pi-vcc@0.8.6"
+    "npm:pi-tool-display"
   ],
   "steeringMode": "one-at-a-time",
   "terminal": {
@@ -58,5 +58,5 @@
   "markdown": {
     "mermaid": "streaming"
   },
-  "tuiMode": "fullscreen"
+  "tuiMode": "regular"
 }
