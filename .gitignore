@@ -23,6 +23,3 @@ npm/
 
 # Generated agent task records
 /gentle-agents/tasks/
-
-# Runtime configuration for installed extensions
-/extensions/pi-tool-display/config.json
