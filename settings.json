@@ -11,7 +11,8 @@
     {
       "extensions": [
         "+extensions/gentle-ai.ts",
-        "-extensions/quiet-tools.ts"
+        "-extensions/quiet-tools.ts",
+        "-extensions/startup-banner.ts"
       ],
       "prompts": [
         "-prompts/gcl.md",
@@ -58,5 +59,8 @@
   "markdown": {
     "mermaid": "streaming"
   },
-  "tuiMode": "regular"
+  "tuiMode": "fullscreen",
+  "compaction": {
+    "enabled": true
+  }
 }
