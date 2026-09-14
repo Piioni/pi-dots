@@ -9,7 +9,7 @@ import {
 import type { ThemeLike, WidthHelpers } from "./types.ts";
 
 function userLabel(theme: ThemeLike | undefined): string {
-  const raw = "👤 user";
+  const raw = " User";
   const bold = theme?.bold ? theme.bold(raw) : raw;
   return styled(bold, "accent", theme);
 }
@@ -26,8 +26,8 @@ export function renderUserBox(
   const body = lines
     .map(normalizeContentLine)
     .filter((line) => !isVisiblyBlank(line, helpers) && !isSeparatorLine(line));
-  const label = ` ${userLabel(theme)} `;
-  const fillWidth = Math.max(1, innerWidth - helpers.visibleWidth(label));
+  const label = helpers.truncateToWidth(` ${userLabel(theme)} `, innerWidth, "", false);
+  const fillWidth = Math.max(0, innerWidth - helpers.visibleWidth(label));
   const top = `${styled("╭", "accent", theme)}${label}${styled("─".repeat(fillWidth) + "╮", "accent", theme)}`;
   const bottom = styled(`╰${"─".repeat(innerWidth)}╯`, "accent", theme);
   const content = body.length > 0 ? body : [""];

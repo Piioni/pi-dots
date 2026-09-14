@@ -1,10 +1,16 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { registerUiOverhaulLifecycle } from "./lifecycle.ts";
-import { renderCodeBlocks } from "./markdown.ts";
+import { renderCodeBlocks, renderCodeBlocksWithControls } from "./markdown.ts";
 import { installMarkdownPatch, installUserMessagePatch, restore } from "./prototype-patches.ts";
+import {
+  activateInlineCodeControl,
+  decorateAssistantCodeControls,
+  getInlineCodeControls,
+} from "./assistant-code-controls.ts";
 import { resetRenderCache, setCurrentContext, type PatchedPrototype } from "./state.ts";
 import { themedBackground } from "./rendering.ts";
+import { extractAssistantCodeBlocks } from "./code-blocks.ts";
 import type { Renderable, ThemeLike, WidthHelpers } from "./types.ts";
 import { renderUserBox } from "./user-message.ts";
 
@@ -56,7 +62,7 @@ test("preserves the baseline user and code box output", () => {
 
   assert.deepEqual(user, [
     "",
-    "╭ 👤 user ───────╮",
+    "╭  User ────────╮",
     "│ alpha          │",
     "│ beta           │",
     "╰────────────────╯",
@@ -68,6 +74,33 @@ test("preserves the baseline user and code box output", () => {
     "╰────────────────╯",
     "after",
   ]);
+
+  assert.deepEqual(renderCodeBlocks(
+    ["~~~ts", "  const y = 2;  ", "~~~"],
+    18,
+    plainTheme,
+    widthHelpers,
+  ), [
+    "╭  ts ──────────╮",
+    "│   const y = 2; │",
+    "╰────────────────╯",
+  ]);
+});
+
+test("keeps the user label border closure aligned at narrow supported widths", () => {
+  assert.deepEqual(renderUserBox([""], 4, plainTheme, widthHelpers), [
+    "",
+    "╭ ╮",
+    "│  │",
+    "╰──╯",
+  ]);
+
+  for (const width of Array.from({ length: 34 }, (_, index) => index + 4)) {
+    const top = renderUserBox([""], width, plainTheme, widthHelpers)[1]!;
+    assert.equal(widthHelpers.visibleWidth(top), width, `width ${width}: ${top}`);
+    if (width > 10) assert.ok(top.includes("─"), `width ${width}: ${top}`);
+    assert.ok(top.endsWith("╮"));
+  }
 });
 
 test("renders canonical language icons, aliases, and an unknown-language fallback", () => {
@@ -187,6 +220,77 @@ assert.equal(widthHelpers.visibleWidth(line), width, `width ${width}: ${line}`);
   }
 });
 
+test("renders width-safe per-block Copy affordances with local targets for complete source blocks", () => {
+  const blocks = extractAssistantCodeBlocks({
+    content: [{ type: "text", text: "```ts\none()\n```\n```py\ntwo()\n```" }],
+  });
+  const rendered = renderCodeBlocksWithControls(
+    ["```ts", "one()", "```", "```py", "two()", "```"],
+    18,
+    plainTheme,
+    widthHelpers,
+    blocks.map((block) => ({ block, onCopy: () => {} })),
+  );
+
+  assert.deepEqual(rendered.lines, [
+    "╭  ts ──── Copy ╮",
+    "│ one()          │",
+    "╰────────────────╯",
+    "╭  py ──── Copy ╮",
+    "│ two()          │",
+    "╰────────────────╯",
+  ]);
+  assert.deepEqual(rendered.targets, [
+    { blockIndex: 1, row: 0, start: 11, end: 17 },
+    { blockIndex: 2, row: 3, start: 11, end: 17 },
+  ]);
+
+  const narrow = renderCodeBlocksWithControls(["```ts", "one()", "```"], 8, plainTheme, widthHelpers, [
+    { block: blocks[0]!, onCopy: () => {} },
+  ]);
+  assert.deepEqual(narrow.lines, ["╭ Copy ╮", "│ one( │", "╰──────╯"]);
+  assert.deepEqual(narrow.targets, [{ blockIndex: 1, row: 0, start: 1, end: 7 }]);
+  for (const line of [...rendered.lines, ...narrow.lines]) {
+    assert.ok(widthHelpers.visibleWidth(line) <= 18);
+  }
+});
+
+test("connects compatible assistant controls to rendered headers and local mouse dispatch", () => {
+  const originalMarkdownRender = function (): string[] {
+    return ["```ts", "copy()", "```"];
+  };
+  const markdownPrototype = {
+    render: originalMarkdownRender,
+    invalidate() {},
+    setText() {},
+  } as unknown as PatchedPrototype & Renderable & { setText(text: string): void };
+  const markdown = Object.create(markdownPrototype) as Renderable & { setText(text: string): void };
+  const component = { children: [] as unknown[], contentContainer: { children: [markdown] as unknown[] } };
+  component.children = [component.contentContainer];
+  const copied: string[] = [];
+  assert.equal(decorateAssistantCodeControls(component, {
+    content: [{ type: "text", text: "```ts\ncopy()\n```" }],
+  }, {
+    onCopy: (block) => { copied.push(block.code); },
+    wrapMouseRegion: (child) => ({ child }),
+  }), true);
+  assert.equal(getInlineCodeControls(markdown)?.length, 1);
+
+  setCurrentContext({ ui: { theme: plainTheme } } as never);
+  try {
+    installMarkdownPatch(markdownPrototype, widthHelpers);
+    assert.equal(markdownPrototype.render.call(markdown, 18)[0], "╭  ts ──── Copy ╮");
+    assert.deepEqual(activateInlineCodeControl(markdown, { type: "click", button: "left", x: 12, y: 0 }), {
+      handled: true,
+      render: true,
+    });
+    assert.deepEqual(copied, ["copy()"]);
+  } finally {
+    restore(markdownPrototype);
+    setCurrentContext(undefined);
+  }
+});
+
 test("preserves non-background ANSI while replacing background coverage", () => {
   const theme: ThemeLike = {
     bg: (_color, text) => `\x1b[48;5;12m${text}\x1b[49m`,
@@ -199,7 +303,48 @@ test("preserves non-background ANSI while replacing background coverage", () => 
   );
 });
 
-test("caches by width, invalidates, restores, and reinstalls prototype patches", () => {
+test("rerenders user messages at the same width when their original output changes", () => {
+  let originalLines: string[] = [];
+  let userRenderCalls = 0;
+  const originalUserRender = function (): string[] {
+    userRenderCalls += 1;
+    return originalLines;
+  };
+  const userPrototype = {
+    render: originalUserRender,
+    invalidate() {},
+  } as unknown as PatchedPrototype & Renderable;
+  const component = {} as Renderable & object;
+
+  setCurrentContext({ ui: { theme: plainTheme } } as never);
+  try {
+    installUserMessagePatch(userPrototype, widthHelpers);
+
+    const initiallyEmpty = userPrototype.render.call(component, 18);
+    originalLines = ["loaded content"];
+    const populated = userPrototype.render.call(component, 18);
+
+    assert.deepEqual(initiallyEmpty, [
+      "",
+      "╭  User ────────╮",
+      "│                │",
+      "╰────────────────╯",
+    ]);
+    assert.deepEqual(populated, [
+      "",
+      "╭  User ────────╮",
+      "│ loaded content │",
+      "╰────────────────╯",
+    ]);
+    assert.equal(userRenderCalls, 2);
+  } finally {
+    restore(userPrototype);
+    resetRenderCache();
+    setCurrentContext(undefined);
+  }
+});
+
+test("patches renders, forwards invalidation, restores, and reinstalls prototype patches", () => {
   let userRenderCalls = 0;
   let userInvalidateCalls = 0;
   let markdownRenderCalls = 0;
@@ -230,18 +375,19 @@ test("caches by width, invalidates, restores, and reinstalls prototype patches",
     installMarkdownPatch(markdownPrototype, widthHelpers);
     installMarkdownPatch(markdownPrototype, widthHelpers);
 
-    const first = userPrototype.render.call(component, 18);
-    assert.strictEqual(userPrototype.render.call(component, 18), first);
-    assert.equal(userRenderCalls, 1);
-    userPrototype.render.call(component, 20);
-    assert.equal(userRenderCalls, 2);
+    assert.notStrictEqual(userPrototype.invalidate, originalUserInvalidate);
     userPrototype.render.call(component, 18);
+    userPrototype.render.call(component, 18);
+    assert.equal(userRenderCalls, 2);
+    userPrototype.render.call(component, 20);
     assert.equal(userRenderCalls, 3);
+    userPrototype.render.call(component, 18);
+    assert.equal(userRenderCalls, 4);
 
     userPrototype.invalidate.call(component);
     assert.equal(userInvalidateCalls, 1);
     userPrototype.render.call(component, 18);
-    assert.equal(userRenderCalls, 4);
+    assert.equal(userRenderCalls, 5);
 
     assert.deepEqual(markdownPrototype.render.call({}, 18), [
       "╭  ts ──────────╮",
