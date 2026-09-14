@@ -1,6 +1,5 @@
 {
   "enabled": true,
-  "debug": false,
   "registerToolOverrides": {
     "read": true,
     "grep": true,
@@ -18,8 +17,8 @@
   "previewLines": 8,
   "expandedPreviewMaxLines": 4000,
   "bashOutputMode": "opencode",
-  "bashCollapsedLines": 10,
-  "diffViewMode": "unified",
+  "bashCollapsedLines": 5,
+  "diffViewMode": "auto",
   "diffIndicatorMode": "classic",
   "diffSplitMinWidth": 120,
   "diffCollapsedLines": 24,
