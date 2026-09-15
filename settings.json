@@ -4,37 +4,20 @@
   "defaultThinkingLevel": "high",
   "editorPaddingX": 1,
   "enableInstallTelemetry": false,
-  "extensions": [],
+  "extensions": ["/home/piioni/.pi/agent/extensions/piioni-shell"],
   "lastChangelogVersion": "0.85.1",
   "outputPad": 1,
   "packages": [
     {
-      "extensions": [
-        "+extensions/gentle-ai.ts",
-        "-extensions/quiet-tools.ts",
-        "-extensions/startup-banner.ts"
-      ],
-      "prompts": [
-        "-prompts/gcl.md",
-        "-prompts/gis.md",
-        "-prompts/gpr.md",
-        "-prompts/gwr.md"
-      ],
-      "skills": [
-        "-skills/branch-pr/SKILL.md",
-        "-skills/chained-pr/SKILL.md",
-        "-skills/issue-creation/SKILL.md"
-      ],
+      "extensions": ["+extensions/gentle-ai.ts", "-extensions/quiet-tools.ts", "-extensions/gentle-shell.ts"],
+      "prompts": ["-prompts/gcl.md", "-prompts/gis.md", "-prompts/gpr.md", "-prompts/gwr.md"],
+      "skills": ["-skills/branch-pr/SKILL.md", "-skills/chained-pr/SKILL.md", "-skills/issue-creation/SKILL.md"],
       "source": "npm:gentle-pi",
-      "themes": [
-        "-themes/Gentle.json"
-      ]
+      "themes": ["-themes/Gentle.json"]
     },
-        "npm:pi-tool-display",
+    "npm:pi-tool-display",
     {
-      "extensions": [
-        "+extensions/index.ts"
-      ],
+      "extensions": ["+extensions/index.ts"],
       "source": "npm:@hypabolic/pi-hypa"
     },
     "npm:@juicesharp/rpiv-ask-user-question",
@@ -44,6 +27,7 @@
     "npm:gentle-engram",
     "npm:pi-web-access",
     "npm:pi-lens",
+    "npm:pi-btw"
   ],
   "steeringMode": "one-at-a-time",
   "terminal": {
@@ -54,7 +38,7 @@
   "hideThinkingBlock": true,
   "showCacheMissNotices": true,
   "collapseChangelog": false,
-  "quietStartup": false,
+  "quietStartup": true,
   "autocompleteMaxVisible": 5,
   "markdown": {
     "mermaid": "streaming"
