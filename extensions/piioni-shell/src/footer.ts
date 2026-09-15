@@ -175,8 +175,8 @@ export function buildFooterModel(
 function segments(model: FooterModel, theme: FooterTheme): string[] {
   const dirty = model.dirty ? ` ${theme.fg("warning", `±${model.dirty}`)}` : "";
   const location = model.branch
-    ? `${theme.fg("muted", model.cwd)} ${theme.fg("text", model.branch)}${dirty}`
-    : `${theme.fg("muted", model.cwd)}${dirty}`;
+    ? `${theme.fg("accent", model.cwd)} ${theme.fg("text", model.branch)}${dirty}`
+    : `${theme.fg("accent", model.cwd)}${dirty}`;
   const modelSegment = model.effort
     ? `${theme.fg("text", model.model)} ${theme.fg("muted", "·")} ${theme.fg("syntaxFunction", model.effort)}`
     : theme.fg("text", model.model);
