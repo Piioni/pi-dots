@@ -31,11 +31,18 @@ type MarkdownChild = Renderable & { invalidate(): void; setText: (text: string) 
 type AssistantControlHost = PatchedPrototype & {
   children: unknown[];
   contentContainer: ChildContainer;
+  render?: unknown;
   updateContent?: unknown;
+};
+
+type AssistantRenderCacheEntry = {
+  width: number;
+  lines: string[];
 };
 
 const inlineControls = new WeakMap<object, readonly InlineCodeControl[]>();
 const inlineTargets = new WeakMap<object, readonly InlineControlTarget[]>();
+let assistantRenderCache = new WeakMap<object, AssistantRenderCacheEntry>();
 
 function isContainer(value: unknown): value is ChildContainer {
   return typeof value === "object" && value !== null && Array.isArray((value as { children?: unknown }).children);
@@ -126,13 +133,26 @@ export function installAssistantCodeControls(
   dependencies: Pick<InlineCodeControl, "onCopy"> & { wrapMouseRegion: MouseRegionFactory },
 ): void {
   if (proto[PATCHED]) return;
-  const original = proto.updateContent;
-  if (typeof original !== "function") return;
+  const originalUpdateContent = proto.updateContent;
+  if (typeof originalUpdateContent !== "function") return;
 
-  proto[ORIGINALS] = { updateContent: original };
+  assistantRenderCache = new WeakMap<object, AssistantRenderCacheEntry>();
+  proto[ORIGINALS] = { updateContent: originalUpdateContent, render: proto.render };
   proto.updateContent = function patchedUpdateContent(this: AssistantControlHost, message: AssistantMessageLike, ...args: unknown[]): void {
-    original.call(this, message, ...args);
+    assistantRenderCache.delete(this);
+    originalUpdateContent.call(this, message, ...args);
     decorateAssistantCodeControls(this, message, dependencies);
   };
+
+  const originalRender = proto.render;
+  if (typeof originalRender === "function") {
+    proto.render = function patchedAssistantRender(this: AssistantControlHost, width: number): string[] {
+      const cached = assistantRenderCache.get(this);
+      if (cached?.width === width) return cached.lines;
+      const lines = originalRender.call(this, width) as string[];
+      assistantRenderCache.set(this, { width, lines });
+      return lines;
+    };
+  }
   proto[PATCHED] = true;
 }

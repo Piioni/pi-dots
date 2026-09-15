@@ -18,8 +18,9 @@ const CHANGES_WIDGET = "piioni-shell-changes";
 const CHANGES_COMMAND = "gentle:changes";
 const USAGE_COMMAND = "gentle:usage";
 const DEFAULT_WATCH_MS = 5000;
+const FOOTER_CACHE_MS = 1000;
 const DEFAULT_SHORTCUT = "alt+g";
-const WORKING_ANIMATION_MS = 120;
+const WORKING_ANIMATION_MS = 500;
 const WORKING_SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"] as const;
 
 type FooterComponent = {
@@ -44,17 +45,48 @@ function gitRunner(pi: ExtensionAPI, root: string) {
   };
 }
 
-function footerFactory(pi: ExtensionAPI, ctx: ExtensionContext, footerData: ReadonlyFooterDataProvider, dirty: () => number, usage: ReturnType<typeof createUsageStore>) {
+function footerFactory(
+  pi: ExtensionAPI,
+  ctx: ExtensionContext,
+  footerData: ReadonlyFooterDataProvider,
+  dirty: () => number,
+  usage: ReturnType<typeof createUsageStore>,
+  registerInvalidator: (invalidate: () => void) => () => void,
+) {
   return (tui: { requestRender(): void }, theme: ShellTheme): FooterComponent => {
+    let cachedAt = 0;
+    let cachedWidth = -1;
+    let cachedLines: string[] | undefined;
     const component: FooterComponent = {
       render(width) {
-        return renderFooter(buildFooterModel(pi, ctx, footerData, dirty(), usage.get(ctx.model?.provider ?? "")), theme, width);
+        const now = Date.now();
+        if (cachedLines && cachedWidth === width && now - cachedAt < FOOTER_CACHE_MS) return cachedLines;
+        cachedAt = now;
+        cachedWidth = width;
+        cachedLines = renderFooter(
+          buildFooterModel(pi, ctx, footerData, dirty(), usage.get(ctx.model?.provider ?? "")),
+          theme,
+          width,
+        );
+        return cachedLines;
       },
-      invalidate() {},
+      invalidate() {
+        cachedAt = 0;
+        cachedWidth = -1;
+        cachedLines = undefined;
+      },
       dispose() {},
     };
-    const unsubscribe = footerData.onBranchChange(() => tui.requestRender());
-    component.dispose = unsubscribe;
+    const invalidate = () => component.invalidate();
+    const unregisterInvalidator = registerInvalidator(invalidate);
+    const unsubscribeBranch = footerData.onBranchChange(() => {
+      invalidate();
+      tui.requestRender();
+    });
+    component.dispose = () => {
+      unsubscribeBranch();
+      unregisterInvalidator();
+    };
     return component;
   };
 }
@@ -73,7 +105,11 @@ export default function piioniShell(pi: ExtensionAPI): void {
   let model: ChangesModel = { files: [], added: 0, deleted: 0 };
   let fingerprint = "";
   let watch: NodeJS.Timeout | undefined;
+  let refreshInFlight: Promise<void> | undefined;
+  let refreshGeneration = 0;
+  let refreshPending = false;
   let requestRender: (() => void) | undefined;
+  let invalidateFooter: (() => void) | undefined;
   const workingState: {
     active: boolean;
     message?: string;
@@ -110,7 +146,10 @@ export default function piioniShell(pi: ExtensionAPI): void {
       if (sessionToken !== activeToken || !response.ok) return;
       const payload: unknown = await response.json();
       if (sessionToken !== activeToken) return;
-      if (usage.recordCodexPayload(CODEX_PROVIDER, payload)) requestRender?.();
+      if (usage.recordCodexPayload(CODEX_PROVIDER, payload)) {
+        invalidateFooter?.();
+        requestRender?.();
+      }
     } catch {
       // Usage is optional; auth/network failures must not affect the shell.
     }
@@ -138,36 +177,59 @@ export default function piioniShell(pi: ExtensionAPI): void {
         return;
       }
       frameIndex = (frameIndex + 1) % WORKING_SPINNER_FRAMES.length;
+      const elapsedSeconds = Math.floor((Date.now() - startedAt) / 1000);
+      const frameChanged = workingState.spinnerFrame !== WORKING_SPINNER_FRAMES[frameIndex];
+      const elapsedChanged = workingState.elapsedSeconds !== elapsedSeconds;
       workingState.spinnerFrame = WORKING_SPINNER_FRAMES[frameIndex];
-      workingState.elapsedSeconds = Math.floor((Date.now() - startedAt) / 1000);
-      requestRender?.();
+      workingState.elapsedSeconds = elapsedSeconds;
+      if (frameChanged || elapsedChanged) requestRender?.();
     }, WORKING_ANIMATION_MS);
     workingAnimation.unref();
   };
 
-  const refresh = async (ctx: ExtensionContext) => {
-    const activeToken = sessionToken;
-    try {
-      if (!root || !activeToken) return;
-      const next = await readChanges(gitRunner(pi, root), root);
-      if (!next || sessionToken !== activeToken) return;
-      const nextFingerprint = changesFingerprint(next);
-      if (nextFingerprint === fingerprint) return;
-      fingerprint = nextFingerprint;
-      model = next;
-      if (model.files.length === 0) ctx.ui.setWidget(CHANGES_WIDGET, undefined);
-      else {
-        ctx.ui.setWidget(CHANGES_WIDGET, (tui, theme) => ({
-          render: (width) => renderChangesWidget(model, theme, width),
-          invalidate() {},
-          dispose() { void tui; },
-        }), { placement: "belowEditor" });
-      }
-      requestRender?.();
-    } catch {
-      // `/reload` can invalidate a queued refresh between the checks above.
-      // A stale refresh must never surface as an uncaught exception.
+  const refresh = (ctx: ExtensionContext): Promise<void> => {
+    if (refreshInFlight) {
+      refreshPending = true;
+      return refreshInFlight;
     }
+
+    const activeToken = sessionToken;
+    const generation = refreshGeneration;
+    const operation = (async () => {
+      try {
+        if (!root || !activeToken) return;
+        const next = await readChanges(gitRunner(pi, root), root);
+        if (!next || sessionToken !== activeToken) return;
+        const nextFingerprint = changesFingerprint(next);
+        if (nextFingerprint === fingerprint) return;
+        fingerprint = nextFingerprint;
+        model = next;
+        invalidateFooter?.();
+        if (model.files.length === 0) ctx.ui.setWidget(CHANGES_WIDGET, undefined);
+        else {
+          ctx.ui.setWidget(CHANGES_WIDGET, (tui, theme) => ({
+            render: (width) => renderChangesWidget(model, theme, width),
+            invalidate() {},
+            dispose() { void tui; },
+          }), { placement: "belowEditor" });
+        }
+        requestRender?.();
+      } catch {
+        // `/reload` can invalidate a queued refresh between the checks above.
+        // A stale refresh must never surface as an uncaught exception.
+      }
+    })();
+    let settled: Promise<void>;
+    settled = operation.finally(() => {
+      if (refreshInFlight !== settled) return;
+      const rerun = refreshPending;
+      refreshPending = false;
+      refreshInFlight = undefined;
+      if (rerun && refreshGeneration === generation && sessionToken === activeToken) void refresh(ctx);
+    });
+    refreshInFlight = settled;
+
+    return settled;
   };
 
   const openChanges = async (ctx: ExtensionContext) => {
@@ -197,20 +259,37 @@ export default function piioniShell(pi: ExtensionAPI): void {
   });
 
   pi.on("after_provider_response", (event) => {
-    if (usage.record(CODEX_PROVIDER, event.headers) || usage.record("anthropic", event.headers)) requestRender?.();
+    if (usage.record(CODEX_PROVIDER, event.headers) || usage.record("anthropic", event.headers)) {
+      invalidateFooter?.();
+      requestRender?.();
+    }
   });
+
+  const invalidateFooterAndRender = () => {
+    invalidateFooter?.();
+    requestRender?.();
+  };
+  pi.on("model_select", invalidateFooterAndRender);
+  pi.on("thinking_level_select", invalidateFooterAndRender);
+  pi.on("session_info_changed", invalidateFooterAndRender);
+  pi.on("session_tree", invalidateFooterAndRender);
+  pi.on("session_compact", invalidateFooterAndRender);
 
   pi.on("session_start", async (_event, ctx) => {
     stopWatch();
     stopWorkingAnimation();
     sessionToken = undefined;
     requestRender = undefined;
+    invalidateFooter = undefined;
     previousEditor = undefined;
     workingState.active = false;
     workingState.message = undefined;
     workingState.spinnerFrame = WORKING_SPINNER_FRAMES[0];
     workingState.elapsedSeconds = 0;
     usageFetchedAt = 0;
+    refreshGeneration += 1;
+    refreshInFlight = undefined;
+    refreshPending = false;
     model = { files: [], added: 0, deleted: 0 };
     fingerprint = "";
     if (!ctx.hasUI || ctx.mode !== "tui") return;
@@ -219,7 +298,13 @@ export default function piioniShell(pi: ExtensionAPI): void {
     void refreshUsage(ctx, true);
     ctx.ui.setFooter((tui, theme, data) => {
       requestRender = () => tui.requestRender();
-      return footerFactory(pi, ctx, data, () => model.files.length, usage)(tui, theme);
+      const registerInvalidator = (invalidate: () => void) => {
+        invalidateFooter = invalidate;
+        return () => {
+          if (invalidateFooter === invalidate) invalidateFooter = undefined;
+        };
+      };
+      return footerFactory(pi, ctx, data, () => model.files.length, usage, registerInvalidator)(tui, theme);
     });
 
     // The editor reads this shared state during render, so an early agent_start
@@ -255,6 +340,7 @@ export default function piioniShell(pi: ExtensionAPI): void {
     workingState.active = false;
     workingState.message = undefined;
     workingState.elapsedSeconds = 0;
+    invalidateFooter?.();
     requestRender?.();
     await refresh(ctx);
     void refreshUsage(ctx, false);
@@ -276,8 +362,10 @@ export default function piioniShell(pi: ExtensionAPI): void {
     workingState.spinnerFrame = WORKING_SPINNER_FRAMES[0];
     workingState.elapsedSeconds = 0;
     sessionToken = undefined;
+    refreshPending = false;
     root = "";
     requestRender = undefined;
+    invalidateFooter = undefined;
     previousEditor = undefined;
   });
 }

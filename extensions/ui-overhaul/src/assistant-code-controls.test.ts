@@ -65,6 +65,47 @@ test("constructs the original assistant transcript before decorating every compl
   assert.deepEqual(copied, []);
 });
 
+test("caches stable assistant renders until content or width changes", () => {
+  let renderCalls = 0;
+  const assistantPrototype = {
+    render(this: { version: number }, width: number) {
+      renderCalls += 1;
+      return [`${this.version}:${width}`];
+    },
+    updateContent(this: { children: unknown[]; contentContainer: { children: unknown[] }; version: number }) {
+      this.version += 1;
+      this.children = [this.contentContainer];
+      this.contentContainer.children = [new FakeMarkdown(`v${this.version}`)];
+    },
+  } as unknown as PatchedPrototype;
+  const assistant = Object.assign(Object.create(assistantPrototype), {
+    children: [] as unknown[],
+    contentContainer: { children: [] as unknown[] },
+    version: 0,
+  }) as {
+    render(width: number): string[];
+    updateContent(source: AssistantMessageLike): void;
+  };
+
+  try {
+    installAssistantCodeControls(assistantPrototype as never, { onCopy: () => {}, wrapMouseRegion });
+    assistant.updateContent(message("stable"));
+
+    assert.deepEqual(assistant.render(80), ["1:80"]);
+    assert.deepEqual(assistant.render(80), ["1:80"]);
+    assert.equal(renderCalls, 1);
+
+    assert.deepEqual(assistant.render(100), ["1:100"]);
+    assert.equal(renderCalls, 2);
+
+    assistant.updateContent(message("changed"));
+    assert.deepEqual(assistant.render(100), ["2:100"]);
+    assert.equal(renderCalls, 3);
+  } finally {
+    restore(assistantPrototype);
+  }
+});
+
 test("validates the complete child shape atomically and leaves incompatible rendering unchanged", () => {
   const markdown = new FakeMarkdown("first");
   const component = {

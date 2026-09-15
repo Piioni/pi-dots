@@ -1,4 +1,9 @@
-import { getInlineCodeControls, setInlineControlTargets } from "./assistant-code-controls.ts";
+import {
+  getInlineCodeControls,
+  setInlineControlTargets,
+  type InlineCodeControl,
+  type InlineControlTarget,
+} from "./assistant-code-controls.ts";
 import { renderCodeBlocksWithControls } from "./markdown.ts";
 import { getTheme, ORIGINALS, PATCHED, type PatchedPrototype } from "./state.ts";
 import { renderToolMessage } from "./tool-message.ts";
@@ -20,7 +25,25 @@ type ToolRenderCacheEntry = {
   lines: string[];
 };
 
+type RenderCacheEntry = {
+  width: number;
+  theme: ThemeLike | undefined;
+  lines: string[];
+};
+
+type MarkdownRenderCacheEntry = RenderCacheEntry & {
+  controls: readonly InlineCodeControl[] | undefined;
+  targets: readonly InlineControlTarget[];
+};
+
 let toolRenderCache = new WeakMap<object, ToolRenderCacheEntry>();
+let markdownRenderCache = new WeakMap<object, MarkdownRenderCacheEntry>();
+let userRenderCache = new WeakMap<object, RenderCacheEntry>();
+
+function invalidatePatchedRender(target: object): void {
+  markdownRenderCache.delete(target);
+  userRenderCache.delete(target);
+}
 
 export function restore(proto: PatchedPrototype): void {
   const originals = proto[ORIGINALS];
@@ -29,6 +52,8 @@ export function restore(proto: PatchedPrototype): void {
   proto[PATCHED] = false;
   proto[ORIGINALS] = undefined;
   toolRenderCache = new WeakMap<object, ToolRenderCacheEntry>();
+  markdownRenderCache = new WeakMap<object, MarkdownRenderCacheEntry>();
+  userRenderCache = new WeakMap<object, RenderCacheEntry>();
 }
 
 export function installMarkdownPatch(
@@ -37,11 +62,45 @@ export function installMarkdownPatch(
 ): void {
   if (proto[PATCHED]) return;
 
-  proto[ORIGINALS] = { render: proto.render };
+  proto[ORIGINALS] = {
+    render: proto.render,
+    invalidate: proto.invalidate,
+    setText: proto.setText,
+  };
+
+  const invalidate = function patchedMarkdownInvalidate(this: object): void {
+    invalidatePatchedRender(this);
+    const original = proto[ORIGINALS]?.invalidate as ((this: object) => void) | undefined;
+    original?.call(this);
+  };
+  if (typeof proto.invalidate === "function") proto.invalidate = invalidate;
+
+  const setText = function patchedMarkdownSetText(this: object, ...args: unknown[]): unknown {
+    invalidatePatchedRender(this);
+    const original = proto[ORIGINALS]?.setText as ((this: object, ...args: unknown[]) => unknown) | undefined;
+    return original?.apply(this, args);
+  };
+  if (typeof proto.setText === "function") proto.setText = setText;
+
   proto.render = function patchedMarkdownRender(this: Renderable, width: number): string[] {
+    const theme = getTheme();
+    const controls = getInlineCodeControls(this);
+    const cached = markdownRenderCache.get(this);
+    if (cached && cached.width === width && cached.theme === theme && cached.controls === controls) {
+      setInlineControlTargets(this, cached.targets);
+      return cached.lines;
+    }
+
     const original = proto[ORIGINALS]?.render as ((this: Renderable, width: number) => string[]) | undefined;
     const lines = original ? original.call(this, width) : [];
-    const rendered = renderCodeBlocksWithControls(lines, width, getTheme(), helpers, getInlineCodeControls(this));
+    const rendered = renderCodeBlocksWithControls(lines, width, theme, helpers, controls);
+    markdownRenderCache.set(this, {
+      width,
+      theme,
+      controls,
+      lines: rendered.lines,
+      targets: rendered.targets,
+    });
     setInlineControlTargets(this, rendered.targets);
     return rendered.lines;
   };
@@ -148,14 +207,21 @@ export function installUserMessagePatch(
   };
 
   proto.invalidate = function patchedInvalidate(this: Renderable): void {
+    invalidatePatchedRender(this);
     const original = proto[ORIGINALS]?.invalidate as ((this: Renderable) => void) | undefined;
     original?.call(this);
   };
 
   proto.render = function patchedRender(this: Renderable, width: number): string[] {
+    const theme = getTheme();
+    const cached = userRenderCache.get(this);
+    if (cached && cached.width === width && cached.theme === theme) return cached.lines;
+
     const original = proto[ORIGINALS]?.render as ((this: Renderable, width: number) => string[]) | undefined;
     const contentWidth = Math.max(1, width - 4);
-    return original ? renderUserBox(original.call(this, contentWidth), width, getTheme(), helpers) : [];
+    const lines = original ? renderUserBox(original.call(this, contentWidth), width, theme, helpers) : [];
+    userRenderCache.set(this, { width, theme, lines });
+    return lines;
   };
 
   proto[PATCHED] = true;

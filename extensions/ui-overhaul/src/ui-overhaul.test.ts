@@ -313,7 +313,7 @@ test("rerenders user messages at the same width when their original output chang
   const userPrototype = {
     render: originalUserRender,
     invalidate() {},
-  } as unknown as PatchedPrototype & Renderable;
+  } as unknown as PatchedPrototype & Renderable & { invalidate(this: object): void };
   const component = {} as Renderable & object;
 
   setCurrentContext({ ui: { theme: plainTheme } } as never);
@@ -321,6 +321,7 @@ test("rerenders user messages at the same width when their original output chang
     installUserMessagePatch(userPrototype, widthHelpers);
 
     const initiallyEmpty = userPrototype.render.call(component, 18);
+    userPrototype.invalidate.call(component);
     originalLines = ["loaded content"];
     const populated = userPrototype.render.call(component, 18);
 
@@ -365,7 +366,9 @@ test("patches renders, forwards invalidation, restores, and reinstalls prototype
   } as unknown as PatchedPrototype & Renderable & { invalidate(this: object): void };
   const markdownPrototype = {
     render: originalMarkdownRender,
-  } as unknown as PatchedPrototype & Renderable;
+    invalidate() {},
+    setText() {},
+  } as unknown as PatchedPrototype & Renderable & { invalidate(this: object): void };
   const component = {} as Renderable & object;
 
   setCurrentContext({ ui: { theme: plainTheme } } as never);
@@ -378,23 +381,32 @@ test("patches renders, forwards invalidation, restores, and reinstalls prototype
     assert.notStrictEqual(userPrototype.invalidate, originalUserInvalidate);
     userPrototype.render.call(component, 18);
     userPrototype.render.call(component, 18);
-    assert.equal(userRenderCalls, 2);
+    assert.equal(userRenderCalls, 1);
     userPrototype.render.call(component, 20);
-    assert.equal(userRenderCalls, 3);
+    assert.equal(userRenderCalls, 2);
     userPrototype.render.call(component, 18);
-    assert.equal(userRenderCalls, 4);
+    assert.equal(userRenderCalls, 3);
 
     userPrototype.invalidate.call(component);
     assert.equal(userInvalidateCalls, 1);
     userPrototype.render.call(component, 18);
-    assert.equal(userRenderCalls, 5);
+    assert.equal(userRenderCalls, 4);
 
-    assert.deepEqual(markdownPrototype.render.call({}, 18), [
+    const markdownComponent = {};
+    assert.deepEqual(markdownPrototype.render.call(markdownComponent, 18), [
+      "╭  ts ──────────╮",
+      "│ x              │",
+      "╰────────────────╯",
+    ]);
+    assert.deepEqual(markdownPrototype.render.call(markdownComponent, 18), [
       "╭  ts ──────────╮",
       "│ x              │",
       "╰────────────────╯",
     ]);
     assert.equal(markdownRenderCalls, 1);
+    markdownPrototype.invalidate.call(markdownComponent);
+    markdownPrototype.render.call(markdownComponent, 18);
+    assert.equal(markdownRenderCalls, 2);
 
     restore(userPrototype);
     restore(markdownPrototype);
