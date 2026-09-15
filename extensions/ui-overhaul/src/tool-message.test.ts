@@ -54,7 +54,7 @@ function cardLine(text: string): string {
   return `${normalBackground}${text}\x1b[49m`;
 }
 
-test("wraps every tool card and highlights core renderDiff rows", () => {
+test("wraps every tool card and preserves native diff colors on the shared background", () => {
   const lines = [
     cardLine("\x1b[38;5;196m  -12 removed\x1b[39m"),
     cardLine("\x1b[38;5;34m  +12 added\x1b[39m"),
@@ -63,12 +63,14 @@ test("wraps every tool card and highlights core renderDiff rows", () => {
   const rendered = renderToolMessage("edit", lines, 24, theme, widthHelpers);
   assert.equal(rendered[0], "");
   assert.ok(rendered[1]!.includes("tool(edit)"));
-  assert.ok(rendered[2]!.startsWith(diffRemovedBackground));
-  assert.ok(rendered[2]!.includes(diffRemovedBackground));
-  assert.ok(rendered[3]!.startsWith(diffAddedBackground));
-  assert.ok(rendered[3]!.includes(diffAddedBackground));
-  assert.ok(!rendered[2]!.includes("\x1b[38;5;196m"));
-  assert.ok(!rendered[3]!.includes("\x1b[38;5;34m"));
+  assert.ok(rendered[2]!.startsWith(normalBackground));
+  assert.ok(rendered[2]!.includes("\x1b[38;5;196m"));
+  assert.ok(!rendered[2]!.includes("\x1b[4m"));
+  assert.ok(!rendered[2]!.includes(diffRemovedBackground));
+  assert.ok(rendered[3]!.startsWith(normalBackground));
+  assert.ok(rendered[3]!.includes("\x1b[38;5;34m"));
+  assert.ok(!rendered[3]!.includes("\x1b[4m"));
+  assert.ok(!rendered[3]!.includes(diffAddedBackground));
 
   const bash = renderToolMessage("bash", lines, 24, theme, widthHelpers);
   assert.equal(bash[0], "");
@@ -76,7 +78,27 @@ test("wraps every tool card and highlights core renderDiff rows", () => {
   assert.ok(bash[2]!.startsWith(addedBackground));
   assert.ok(bash[3]!.startsWith(addedBackground));
 });
-    test("hides completed hypa_read output while preserving its call line", () => {
+
+test("preserves split diff bars without adding row underlines", () => {
+  const splitRow = (left: string, right: string): string =>
+    cardLine(`${left.padEnd(28)} │ ${right.padEnd(29)}`);
+  const lines = [
+    splitRow("\x1b[38;5;196m▌\x1b[39m  70 │ removed value", "\x1b[38;5;34m▌\x1b[39m  70 │ added value"),
+    splitRow("      │ wrapped old", "      │ wrapped new"),
+    splitRow("   71 │ unchanged", "   71 │ unchanged"),
+  ];
+
+  const rendered = renderToolMessage("edit", lines, 60, theme, widthHelpers);
+
+  assert.ok(rendered[2]!.includes("\x1b[38;5;196m"));
+  assert.ok(rendered[2]!.includes("\x1b[38;5;34m"));
+  assert.ok(rendered[2]!.includes("▌"));
+  assert.ok(rendered.slice(2, 5).every((line) => !line.includes("\x1b[4m")));
+  assert.ok(rendered.slice(2, 5).every((line) => line.startsWith(normalBackground)));
+  assert.equal(widthHelpers.visibleWidth(rendered[2]!), 60);
+});
+
+test("hides completed hypa_read output while preserving its call line", () => {
       const lines = [
         cardLine("hypa_read /tmp/example.txt"),
         cardLine("first output line"),
@@ -113,7 +135,7 @@ test("wraps every tool card and highlights core renderDiff rows", () => {
       assert.equal(widthHelpers.visibleWidth(rendered[1]!), 40);
     });
 
-    test("preserves nested ANSI ordering and terminal width when replacing a diff row background", () => {
+    test("preserves nested ANSI ordering and terminal width without custom underlines", () => {
   const rendered = renderToolMessage(
     "write",
     [cardLine(`  \x1b[31m+7 \x1b[7madded\x1b[0m`)],
@@ -122,31 +144,12 @@ test("wraps every tool card and highlights core renderDiff rows", () => {
     widthHelpers,
   )[2]!;
 
-  assert.ok(rendered.includes(diffAddedBackground));
-  assert.ok(rendered.includes(`\x1b[31m${diffAddedBackground}`));
-  assert.ok(rendered.includes(`\x1b[7m${diffAddedBackground}`));
+  assert.ok(rendered.startsWith(normalBackground));
+  assert.ok(!rendered.includes("\x1b[4m"));
+  assert.ok(!rendered.includes(diffAddedBackground));
+  assert.ok(rendered.includes("\x1b[31m"));
+  assert.ok(rendered.includes("\x1b[7m"));
   assert.equal(widthHelpers.visibleWidth(rendered), 24);
-});
-
-test("continues the changed-row background through wrapped renderDiff rows but stops at context", () => {
-  const rendered = renderToolMessage(
-    "edit",
-    [
-      cardLine("  -42 a removed row"),
-      cardLine("that continues after wrapping"),
-          cardLine("╰────────────────╯"),
-      cardLine("   43 unchanged context"),
-    ],
-    36,
-    theme,
-    widthHelpers,
-  );
-
-  assert.ok(rendered[2]!.includes(diffRemovedBackground));
-  assert.ok(rendered[3]!.includes(diffRemovedBackground));
-  assert.ok(rendered[4]!.includes(addedBackground));
-  assert.ok(rendered[5]!.includes(addedBackground));
-  assert.equal(rendered.length, 6);
 });
 
 test("caches stable tool renders and restores the tool renderer with the TUI lifecycle", async () => {
@@ -177,7 +180,10 @@ test("caches stable tool renders and restores the tool renderer with the TUI lif
     assert.equal(renderCalls, 1);
     assert.equal(rendered[0], "");
     assert.ok(rendered[1]!.includes("tool(edit)"));
-    assert.ok(rendered[2]!.includes(diffAddedBackground));
+    assert.ok(rendered[2]!.startsWith(normalBackground));
+    assert.ok(rendered[2]!.includes("+9 patched"));
+    assert.ok(!rendered[2]!.includes("\x1b[4m"));
+    assert.ok(!rendered[2]!.includes(diffAddedBackground));
 
     await shutdown({});
     assert.strictEqual(toolPrototype.render, originalToolRender);
