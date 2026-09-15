@@ -137,7 +137,12 @@ export function renderToolMessage(
   const background = toolBackground(state);
   const isDiffTool = toolName === "edit" || toolName === "write";
   let activeKind: DiffKind | undefined;
-  const body = compactToolLines(lines, helpers).map((line) => {
+  const compactedLines = compactToolLines(lines, helpers);
+  const visibleLines =
+    toolName === "hypa_read" && state?.isPartial !== true
+      ? compactedLines.slice(0, 1)
+      : compactedLines;
+  const body = visibleLines.map((line) => {
     if (isDiffTool) {
       const currentKind = diffKind(line);
       if (currentKind) activeKind = currentKind;

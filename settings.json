@@ -30,6 +30,7 @@
         "-themes/Gentle.json"
       ]
     },
+        "npm:pi-tool-display",
     {
       "extensions": [
         "+extensions/index.ts"
@@ -43,7 +44,6 @@
     "npm:gentle-engram",
     "npm:pi-web-access",
     "npm:pi-lens",
-    "npm:pi-tool-display"
   ],
   "steeringMode": "one-at-a-time",
   "terminal": {

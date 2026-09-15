@@ -9,7 +9,13 @@
     "edit": true,
     "write": true
   },
-  "customToolOverrides": {},
+  "customToolOverrides": {
+    "hypa_read": {
+      "enabled": true,
+      "kind": "generic",
+      "outputMode": "hidden"
+    }
+  },
   "enableNativeUserMessageBox": false,
   "readOutputMode": "summary",
   "searchOutputMode": "count",

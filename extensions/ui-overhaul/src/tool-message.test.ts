@@ -76,6 +76,36 @@ test("wraps every tool card and highlights core renderDiff rows", () => {
   assert.ok(bash[2]!.startsWith(addedBackground));
   assert.ok(bash[3]!.startsWith(addedBackground));
 });
+    test("hides completed hypa_read output while preserving its call line", () => {
+      const lines = [
+        cardLine("hypa_read /tmp/example.txt"),
+        cardLine("first output line"),
+        cardLine("second output line"),
+      ];
+
+      const completed = renderToolMessage(
+        "hypa_read",
+        lines,
+        40,
+        theme,
+        widthHelpers,
+        { isPartial: false },
+      );
+      assert.equal(completed.length, 4);
+      assert.ok(completed[2]!.includes("hypa_read /tmp/example.txt"));
+      assert.ok(!completed[2]!.includes("first output line"));
+
+      const partial = renderToolMessage(
+        "hypa_read",
+        lines,
+        40,
+        theme,
+        widthHelpers,
+        { isPartial: true },
+      );
+      assert.equal(partial.length, 6);
+      assert.ok(partial.some((line) => line.includes("first output line")));
+    });
 
     test("closes the top border after the title at the requested width", () => {
       const rendered = renderToolMessage("mem_session_summary", [cardLine("output")], 40, theme, widthHelpers);
