@@ -64,7 +64,7 @@ export function renderToolMessage(
   const background = toolBackground(toolName, state);
   const compactedLines = compactToolLines(lines, helpers);
   const visibleLines =
-    toolName === "hypa_read" && state?.isPartial !== true
+    ["hypa_read", "hypa_grep", "hypa_find", "hypa_ls", "hypa_shell"].includes(toolName as string) && state?.isPartial !== true
       ? compactedLines.slice(0, 1)
       : compactedLines;
   const body = visibleLines.map((line) => {

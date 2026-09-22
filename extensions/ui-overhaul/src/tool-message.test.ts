@@ -129,7 +129,75 @@ test("hides completed hypa_read output while preserving its call line", () => {
       assert.ok(partial.some((line) => line.includes("first output line")));
     });
 
-    test("closes the top border after the title at the requested width", () => {
+    test("hides completed hypa_grep output while preserving its call line", () => {
+      const lines = [
+        cardLine("hypa_grep needle /tmp"),
+        cardLine("first match"),
+        cardLine("second match"),
+      ];
+
+      const completed = renderToolMessage("hypa_grep", lines, 40, theme, widthHelpers, { isPartial: false });
+      assert.equal(completed.length, 4);
+      assert.ok(completed[2]!.includes("hypa_grep needle /tmp"));
+      assert.ok(!completed[2]!.includes("first match"));
+
+      const partial = renderToolMessage("hypa_grep", lines, 40, theme, widthHelpers, { isPartial: true });
+      assert.equal(partial.length, 6);
+      assert.ok(partial.some((line) => line.includes("first match")));
+    });
+
+    test("hides completed hypa_find output while preserving its call line", () => {
+      const lines = [
+        cardLine("hypa_find *.ts /tmp"),
+        cardLine("first result"),
+        cardLine("second result"),
+      ];
+
+      const completed = renderToolMessage("hypa_find", lines, 40, theme, widthHelpers, { isPartial: false });
+      assert.equal(completed.length, 4);
+      assert.ok(completed[2]!.includes("hypa_find *.ts /tmp"));
+      assert.ok(!completed[2]!.includes("first result"));
+
+      const partial = renderToolMessage("hypa_find", lines, 40, theme, widthHelpers, { isPartial: true });
+      assert.equal(partial.length, 6);
+      assert.ok(partial.some((line) => line.includes("first result")));
+    });
+
+        test("hides completed hypa_ls output while preserving its call line", () => {
+          const lines = [
+            cardLine("hypa_ls /tmp"),
+            cardLine("first entry"),
+            cardLine("second entry"),
+          ];
+    
+          const completed = renderToolMessage("hypa_ls", lines, 40, theme, widthHelpers, { isPartial: false });
+          assert.equal(completed.length, 4);
+          assert.ok(completed[2]!.includes("hypa_ls /tmp"));
+          assert.ok(!completed[2]!.includes("first entry"));
+    
+          const partial = renderToolMessage("hypa_ls", lines, 40, theme, widthHelpers, { isPartial: true });
+          assert.equal(partial.length, 6);
+          assert.ok(partial.some((line) => line.includes("first entry")));
+        });
+    
+        test("hides completed hypa_shell output while preserving its call line", () => {
+          const lines = [
+            cardLine("hypa_shell pwd"),
+            cardLine("/tmp/project"),
+            cardLine("exit code: 0"),
+          ];
+
+          const completed = renderToolMessage("hypa_shell", lines, 40, theme, widthHelpers, { isPartial: false });
+          assert.equal(completed.length, 4);
+          assert.ok(completed[2]!.includes("hypa_shell pwd"));
+          assert.ok(!completed[2]!.includes("/tmp/project"));
+
+          const partial = renderToolMessage("hypa_shell", lines, 40, theme, widthHelpers, { isPartial: true });
+          assert.equal(partial.length, 6);
+          assert.ok(partial.some((line) => line.includes("/tmp/project")));
+        });
+
+        test("closes the top border after the title at the requested width", () => {
       const rendered = renderToolMessage("mem_session_summary", [cardLine("output")], 40, theme, widthHelpers);
       assert.ok(rendered[1]!.endsWith("╮\x1b[49m"));
       assert.equal(widthHelpers.visibleWidth(rendered[1]!), 40);

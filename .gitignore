@@ -2,6 +2,8 @@
 gentle-ai/
 chains/
 pi-pretty/
+odd/
+/gentle-agents/
 
 # Sessions — large and ephemeral
 sessions/
@@ -15,11 +17,11 @@ auth.json
 # MCP cache and model store
 mcp-cache.json
 models-store.json
-antigravity-model-catalog.json
 npm/
 
 # Local Pi runtime state
 .atl/
 
-# Generated agent task records
-/gentle-agents/
+# cosas
+disabled-extensions/
+figma.json
