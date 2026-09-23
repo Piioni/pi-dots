@@ -12,6 +12,7 @@ const addedBackground = "\x1b[48;5;22m";
 const removedBackground = "\x1b[48;5;52m";
 const diffAddedBackground = "\x1b[48;5;34m";
 const diffRemovedBackground = "\x1b[48;5;196m";
+const errorBorder = "\x1b[38;5;196m";
 
 const theme: ThemeLike = {
   bg(color, text) {
@@ -20,7 +21,7 @@ const theme: ThemeLike = {
   },
   fg(color, text) {
     if (color === "toolDiffAdded") return `\x1b[38;5;34m${text}\x1b[39m`;
-    if (color === "toolDiffRemoved") return `\x1b[38;5;196m${text}\x1b[39m`;
+    if (color === "toolDiffRemoved" || color === "error") return `${errorBorder}${text}\x1b[39m`;
     return text;
   },
   getBgAnsi(color) {
@@ -77,6 +78,14 @@ test("wraps every tool card and preserves native diff colors on the shared backg
   assert.ok(bash[1]!.includes("tool(bash)"));
   assert.ok(bash[2]!.startsWith(addedBackground));
   assert.ok(bash[3]!.startsWith(addedBackground));
+
+  const failed = renderToolMessage("bash", lines, 24, theme, widthHelpers, { isError: true });
+  assert.ok(failed[1]!.startsWith(removedBackground));
+  assert.ok(failed[1]!.includes(errorBorder));
+  assert.ok(failed[failed.length - 1]!.includes(errorBorder));
+
+  const failedEdit = renderToolMessage("edit", lines, 24, theme, widthHelpers, { isError: true });
+  assert.ok(failedEdit[1]!.startsWith(removedBackground));
 });
 
 test("preserves split diff bars without adding row underlines", () => {

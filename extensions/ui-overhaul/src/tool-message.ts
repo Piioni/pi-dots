@@ -24,8 +24,9 @@ function toolBackground(
   toolName: unknown,
   state: ToolRenderState | undefined,
 ): "toolPendingBg" | "toolSuccessBg" | "toolErrorBg" {
+  if (state?.isError) return "toolErrorBg";
   if (toolName === "edit" || toolName === "write" || state?.isPartial) return "toolPendingBg";
-  return state?.isError ? "toolErrorBg" : "toolSuccessBg";
+  return "toolSuccessBg";
 }
 
 function isNestedFrameLine(line: string): boolean {
@@ -39,8 +40,8 @@ function compactToolLines(lines: string[], helpers: WidthHelpers): string[] {
   );
 }
 
-function border(text: string, theme: ThemeLike | undefined): string {
-  return styled(text, "success", theme);
+function border(text: string, theme: ThemeLike | undefined, state: ToolRenderState | undefined): string {
+  return styled(text, state?.isError ? "error" : "success", theme);
 }
 
 /**
@@ -69,14 +70,14 @@ export function renderToolMessage(
       : compactedLines;
   const body = visibleLines.map((line) => {
     const content = themedBackground(line, innerWidth, background, theme, helpers);
-    const side = themedBackground(border("│", theme), 1, background, theme, helpers);
+    const side = themedBackground(border("│", theme, state), 1, background, theme, helpers);
     return `${side}${content}${side}`;
   });
 
   const title = helpers.truncateToWidth(` ${toolTitle(toolName, theme)} `, innerWidth, "", false);
   const titleWidth = helpers.visibleWidth(title);
-  const top = `${border("╭", theme)}${title}${border("─".repeat(Math.max(0, innerWidth - titleWidth)), theme)}${border("╮", theme)}`;
-  const bottom = `${border("╰", theme)}${border("─".repeat(innerWidth), theme)}${border("╯", theme)}`;
+  const top = `${border("╭", theme, state)}${title}${border("─".repeat(Math.max(0, innerWidth - titleWidth)), theme, state)}${border("╮", theme, state)}`;
+  const bottom = `${border("╰", theme, state)}${border("─".repeat(innerWidth), theme, state)}${border("╯", theme, state)}`;
 
   return [
     "",
