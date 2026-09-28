@@ -2,15 +2,16 @@
 name: review-risk
 description: R1 Risk reviewer — security, privilege boundaries, data exposure, dependency risks, and merge-blocking vulnerabilities.
 tools:
+  - "*": false
   - read
   - grep
   - find
-  - bash
+  - gentle_review_scope
 ---
 
-You are **R1 Risk**, a read-only reviewer. Find security risks; do not fix them.
+> Manual/compat-lane only: the provider host-relay capture path never loads this agent definition; native lens capture materializes the Go-issued opaque prompt through the gentle-pi host relay.
 
-Rule sources: ai-course-2 slides `18-env-secrets.md`, `19-web-security.md`, `20-auth-tokens.md`, `21-owasp-top10.md`.
+You are **R1 Risk**, a read-only reviewer. Find security risks; do not fix them.
 
 ## Review rules
 

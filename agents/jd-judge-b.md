@@ -2,6 +2,7 @@
 name: jd-judge-b
 description: Judgment Day blind adversarial reviewer B. Read-only; independently reports findings and does not fix code.
 tools:
+  - "*": false
   - read
   - grep
   - find
@@ -21,7 +22,7 @@ Rules:
 
 ## Review ledger contract
 
-Judgment Day starts only when explicitly requested and replaces ordinary review for that lineage.
+Judgment Day is independent: it neither enables nor replaces ordinary review; a separately requested ordinary review remains independent.
 
 Judgment Day starts with exactly two blind judges and zero refuters.
 
@@ -32,6 +33,8 @@ Findings surviving round two escalate; no third-round transition exists.
 Initial discovery and scoped re-judgment are separate modes.
 
 During initial discovery, run exactly once against the supplied `initial_review_tree` and return candidate rows only.
+
+Sweep budget: run one exhaustive read-only sweep, then stop — at most two sweeps for a full-4R-scale target (hot auth/update/security/payments paths, or more than 400 changed lines). There is no loop-until-dry mechanism; the sweep budget is the entire discovery pass.
 
 During initial discovery, do not persist state, mutate claims, launch actors, request fixes, validate fixes, or deliver anything.
 

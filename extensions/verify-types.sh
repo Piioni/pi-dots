@@ -4,10 +4,9 @@ set -euo pipefail
 ROOT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 
 for package in \
-  shared \
-  random-working-message \
-  piioni-layout \
-  claude-project-adapter
+  claude-project-adapter \
+  moshi-permission-bridge \
+  ui-overhaul
  do
   package_dir="$ROOT_DIR/$package"
   typecheck="$package_dir/node_modules/.bin/tsc"
