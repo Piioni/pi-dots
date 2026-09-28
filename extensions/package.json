@@ -2,6 +2,6 @@
   "private": true,
   "scripts": {
     "typecheck": "./verify-types.sh",
-    "test": "npm run typecheck && npm test --prefix claude-project-adapter"
+    "test": "npm run typecheck && npm test --prefix claude-project-adapter && npm test --prefix ui-overhaul"
   }
 }

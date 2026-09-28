@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { registerUiOverhaulLifecycle } from "./lifecycle.ts";
-import { restore } from "./prototype-patches.ts";
-import { setCurrentContext, type PatchedPrototype } from "./state.ts";
-import { renderToolMessage } from "./tool-message.ts";
-import type { Renderable, ThemeLike, WidthHelpers } from "./types.ts";
+import { registerUiOverhaulLifecycle } from "../src/lifecycle.ts";
+import { restore } from "../src/prototype-patches.ts";
+import { setCurrentContext, type PatchedPrototype } from "../src/state.ts";
+import { renderToolMessage } from "../src/tool-message.ts";
+import type { Renderable, ThemeLike, WidthHelpers } from "../src/types.ts";
 
 const ansiPattern = /\x1b\[[0-9;]*m/g;
 const normalBackground = "\x1b[48;5;240m";

@@ -2,7 +2,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --test src/*.test.ts"
+    "test": "node --test test/*.test.ts",
+    "typecheck": "tsc --project tsconfig.json"
   },
   "devDependencies": {
     "@earendil-works/pi-coding-agent": "0.85.1",

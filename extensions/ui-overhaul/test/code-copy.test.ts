@@ -6,8 +6,8 @@ import {
   describeCodeBlock,
   findLatestAssistantMessage,
   runCopyCodeCommand,
-} from "./code-copy.ts";
-import { extractAssistantCodeBlocks } from "./code-blocks.ts";
+} from "../src/code-copy.ts";
+import { extractAssistantCodeBlocks } from "../src/code-blocks.ts";
 
 const assistant = (text: string) => ({ role: "assistant" as const, content: [{ type: "text" as const, text }] });
 const complete = assistant("```ts\nconst copied = '\\x1b[31m';\n```");

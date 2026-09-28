@@ -6,11 +6,11 @@ import {
   getInlineCodeControls,
   installAssistantCodeControls,
   setInlineControlTargets,
-} from "./assistant-code-controls.ts";
-import { registerUiOverhaulLifecycle } from "./lifecycle.ts";
-import { restore } from "./prototype-patches.ts";
-import { setCurrentContext, type PatchedPrototype } from "./state.ts";
-import type { AssistantMessageLike, Renderable, WidthHelpers } from "./types.ts";
+} from "../src/assistant-code-controls.ts";
+import { registerUiOverhaulLifecycle } from "../src/lifecycle.ts";
+import { restore } from "../src/prototype-patches.ts";
+import { setCurrentContext, type PatchedPrototype } from "../src/state.ts";
+import type { AssistantMessageLike, Renderable, WidthHelpers } from "../src/types.ts";
 
 class FakeMarkdown implements Renderable {
   readonly id: string;

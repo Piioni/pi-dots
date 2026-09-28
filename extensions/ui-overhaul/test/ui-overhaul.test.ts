@@ -1,18 +1,18 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { registerUiOverhaulLifecycle } from "./lifecycle.ts";
-import { renderCodeBlocks, renderCodeBlocksWithControls } from "./markdown.ts";
-import { installMarkdownPatch, installUserMessagePatch, restore } from "./prototype-patches.ts";
+import { registerUiOverhaulLifecycle } from "../src/lifecycle.ts";
+import { renderCodeBlocks, renderCodeBlocksWithControls } from "../src/markdown.ts";
+import { installMarkdownPatch, installUserMessagePatch, restore } from "../src/prototype-patches.ts";
 import {
   activateInlineCodeControl,
   decorateAssistantCodeControls,
   getInlineCodeControls,
-} from "./assistant-code-controls.ts";
-import { resetRenderCache, setCurrentContext, type PatchedPrototype } from "./state.ts";
-import { themedBackground } from "./rendering.ts";
-import { extractAssistantCodeBlocks } from "./code-blocks.ts";
-import type { Renderable, ThemeLike, WidthHelpers } from "./types.ts";
-import { renderUserBox } from "./user-message.ts";
+} from "../src/assistant-code-controls.ts";
+import { resetRenderCache, setCurrentContext, type PatchedPrototype } from "../src/state.ts";
+import { themedBackground } from "../src/rendering.ts";
+import { extractAssistantCodeBlocks } from "../src/code-blocks.ts";
+import type { Renderable, ThemeLike, WidthHelpers } from "../src/types.ts";
+import { renderUserBox } from "../src/user-message.ts";
 
 const ansiPattern = /\x1b\[[0-9;]*m/g;
 const plainTheme: ThemeLike = {

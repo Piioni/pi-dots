@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { extractAssistantCodeBlocks, scanFencedBlocks, setMarkedLexer } from "./code-blocks.ts";
+import { extractAssistantCodeBlocks, scanFencedBlocks, setMarkedLexer } from "../src/code-blocks.ts";
 
 const message = (content: Array<{ type: "text"; text: string }>) => ({ content });
 

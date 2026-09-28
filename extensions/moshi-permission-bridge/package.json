@@ -2,6 +2,9 @@
   "name": "moshi-permission-bridge",
   "private": true,
   "type": "module",
+  "scripts": {
+    "typecheck": "tsc --project tsconfig.json"
+  },
   "devDependencies": {
     "@earendil-works/pi-coding-agent": "0.85.1",
     "@types/node": "^24.0.0",
