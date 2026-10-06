@@ -14,6 +14,16 @@ type MarkedToken = MarkedCodeToken;
 type MarkedLexer = (markdown: string) => readonly MarkedToken[];
 
 let markedLexer: MarkedLexer | undefined;
+let lexerGeneration = 0;
+
+type CachedPart = {
+  text: string;
+  candidates: readonly FencedBlockCandidate[];
+  appendEligible: boolean;
+  appendMayCompleteContext: boolean;
+};
+type ExtractionCache = { generation: string; parts: Map<number, CachedPart> };
+const extractionCaches = new WeakMap<object, ExtractionCache>();
 
 export type FenceLine = {
   marker: "`" | "~";
@@ -22,6 +32,7 @@ export type FenceLine = {
 };
 
 export function setMarkedLexer(lexer: MarkedLexer | undefined): void {
+  if (markedLexer !== lexer) lexerGeneration += 1;
   markedLexer = lexer;
 }
 
@@ -39,7 +50,7 @@ export function parseFenceLine(raw: string): FenceLine | undefined {
 export function isClosingFenceLine(raw: string, marker: "`" | "~", length: number): boolean {
   const line = raw.split(/\r?\n/u, 1)[0] ?? raw;
   const match = line.match(/^[ \\t]*([`~]+)[ \\t]*$/u);
-  return match?.[1]?.[0] === marker && match[1].length >= length;
+  return match?.[1]?.[0] === marker && match[1].length >= length && [...match[1]].every((character) => character === marker);
 }
 
 function closingFence(raw: string, marker: "`" | "~", length: number): boolean {
@@ -136,6 +147,103 @@ export function scanFencedBlocks(markdown: string): readonly FencedBlockCandidat
   } catch {
     return [];
   }
+}
+
+function canAppendOpenFence(text: string, candidates: readonly FencedBlockCandidate[]): boolean {
+  if (!text.startsWith("```") && !text.startsWith("~~~")) return false;
+  if (candidates.length === 0 || candidates.at(-1)?.complete !== false) return false;
+  if (candidates.slice(0, -1).some((candidate) => !candidate.complete)) return false;
+  // Avoid carrying parser context through lists or quotes; they can reinterpret appended lines.
+  return !/^ {0,3}(?:>|(?:[-+*]|\d+[.)])\s)/mu.test(text);
+}
+
+function mayCompleteListContext(line: string): boolean {
+  return line.length > 0 && /^ {0,3}(?:(?:[-+*])|(?:\d+[.)]?)|)$/u.test(line);
+}
+
+function trailingLine(text: string): string {
+  return text.slice(text.lastIndexOf("\n") + 1);
+}
+
+function isSafeOpenFenceSuffix(suffix: string): boolean {
+  // Any delimiter or newly introduced list/quote syntax requires canonical lexing.
+  return !/[`~]/u.test(suffix) && !/^ {0,3}(?:>|(?:[-+*]|\d+[.)])\s)/mu.test(suffix);
+}
+
+function scanFencedBlocksWithStatus(markdown: string): { candidates: readonly FencedBlockCandidate[]; succeeded: boolean } {
+  try {
+    return { candidates: scanMarkedFences(markdown) ?? scanFallbackFences(markdown), succeeded: true };
+  } catch {
+    return { candidates: [], succeeded: false };
+  }
+}
+
+/** Extracts blocks for a live host while retaining only that host's current content parts. */
+export function extractAssistantCodeBlocksForHost(
+  host: object,
+  message: AssistantMessageLike,
+  runtimeGeneration = 0,
+): readonly AssistantCodeBlock[] {
+  const generation = `${lexerGeneration}:${runtimeGeneration}`;
+  let cache = extractionCaches.get(host);
+  if (!cache || cache.generation !== generation) {
+    cache = { generation, parts: new Map() };
+  }
+
+  const nextParts = new Map<number, CachedPart>();
+  const blocks: AssistantCodeBlock[] = [];
+  for (const [contentPartIndex, part] of message.content.entries()) {
+    if (part.type !== "text" || typeof part.text !== "string") continue;
+
+    const text = part.text;
+    const previous = cache.parts.get(contentPartIndex);
+    let partCache: CachedPart | undefined;
+    let candidates: readonly FencedBlockCandidate[];
+    if (previous?.text === text) {
+      partCache = previous;
+      candidates = previous.candidates;
+    } else if (previous?.appendEligible && !previous.appendMayCompleteContext
+      && text.startsWith(previous.text) && isSafeOpenFenceSuffix(text.slice(previous.text.length))) {
+      const suffix = text.slice(previous.text.length);
+      partCache = {
+        text,
+        candidates: previous.candidates,
+        appendEligible: true,
+        appendMayCompleteContext: mayCompleteListContext(trailingLine(suffix)),
+      };
+      candidates = previous.candidates;
+    } else {
+      const scanned = scanFencedBlocksWithStatus(text);
+      candidates = scanned.candidates;
+      const appendEligible = scanned.succeeded && canAppendOpenFence(text, candidates);
+      partCache = scanned.succeeded
+        ? {
+          text,
+          candidates,
+          appendEligible,
+          appendMayCompleteContext: appendEligible && mayCompleteListContext(trailingLine(text)),
+        }
+        : undefined;
+    }
+
+    if (partCache) nextParts.set(contentPartIndex, partCache);
+    for (const candidate of candidates) {
+      if (!candidate.complete || candidate.code === undefined) continue;
+      blocks.push({
+        candidateIndex: candidate.candidateIndex,
+        marker: candidate.marker,
+        fenceLength: candidate.fenceLength,
+        info: candidate.info,
+        complete: true,
+        code: candidate.code,
+        contentPartIndex,
+        blockIndex: blocks.length + 1,
+        key: `${contentPartIndex}:${candidate.candidateIndex}`,
+      });
+    }
+  }
+  extractionCaches.set(host, { generation, parts: nextParts });
+  return blocks;
 }
 
 export function extractAssistantCodeBlocks(message: AssistantMessageLike): readonly AssistantCodeBlock[] {

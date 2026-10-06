@@ -1,5 +1,5 @@
-import { extractAssistantCodeBlocks } from "./code-blocks.ts";
-import { ORIGINALS, PATCHED, type PatchedPrototype } from "./state.ts";
+import { extractAssistantCodeBlocksForHost } from "./code-blocks.ts";
+import { getRuntimeGeneration, ORIGINALS, PATCHED, type PatchedPrototype } from "./state.ts";
 import type { AssistantCodeBlock, AssistantMessageLike, Renderable } from "./types.ts";
 
 export type InlineCodeControl = {
@@ -80,7 +80,7 @@ export function decorateAssistantCodeControls(
   if (markdownChildren.length !== textPartIndexes.length) return false;
 
   const blocksByPart = new Map<number, AssistantCodeBlock[]>();
-  for (const block of extractAssistantCodeBlocks(message)) {
+  for (const block of extractAssistantCodeBlocksForHost(value, message, getRuntimeGeneration())) {
     const blocks = blocksByPart.get(block.contentPartIndex) ?? [];
     blocks.push(block);
     blocksByPart.set(block.contentPartIndex, blocks);
