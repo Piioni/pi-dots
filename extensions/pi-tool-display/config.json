@@ -7,7 +7,8 @@
     "ls": true,
     "bash": true,
     "edit": true,
-    "write": true
+    "write": true,
+    "codemode": true
   },
   "customToolOverrides": {
     "hypa_read": {
