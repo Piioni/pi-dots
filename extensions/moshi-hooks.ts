@@ -376,7 +376,7 @@ function recordTaskCompletion(state: SessionState, signature: string, now: numbe
   return true
 }
 
-// Pi's versioned SessionHeader writes parentSession(-Id) when a session was
+// Pi's (and OmO's senpi fork's) versioned SessionHeader writes parentSession(-Id) when a session was
 // created by fork/clone/newSession with lineage; child sessions stay out of
 // the inbox. Lineage cannot change for a live transcript, so a successful
 // read is cached per path; an unreadable or half-written header is retried
@@ -384,7 +384,7 @@ function recordTaskCompletion(state: SessionState, signature: string, now: numbe
 const transcriptChildCache = new Map<string, boolean>()
 
 function sessionIsChild(state: SessionState, payload: HookPayload): boolean {
-  if (agentSource !== "pi") return false
+  if (agentSource !== "pi" && agentSource !== "omo") return false
   const path = payload.transcript_path || state.transcriptPath
   if (!path) return false
   const cached = transcriptChildCache.get(path)
