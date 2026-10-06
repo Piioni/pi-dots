@@ -23,31 +23,14 @@
   "outputPad": 1,
   "packages": [
     {
-      "extensions": [
-        "+extensions/gentle-ai.ts",
-        "-extensions/quiet-tools.ts",
-        "-extensions/gentle-shell.ts"
-      ],
-      "prompts": [
-        "-prompts/gcl.md",
-        "-prompts/gis.md",
-        "-prompts/gpr.md",
-        "-prompts/gwr.md"
-      ],
-      "skills": [
-        "-skills/branch-pr/SKILL.md",
-        "-skills/chained-pr/SKILL.md",
-        "-skills/issue-creation/SKILL.md"
-      ],
+      "extensions": ["+extensions/gentle-ai.ts", "-extensions/quiet-tools.ts", "-extensions/gentle-shell.ts"],
+      "prompts": ["-prompts/gcl.md", "-prompts/gis.md", "-prompts/gpr.md", "-prompts/gwr.md"],
+      "skills": ["-skills/branch-pr/SKILL.md", "-skills/chained-pr/SKILL.md", "-skills/issue-creation/SKILL.md"],
       "source": "npm:gentle-pi",
-      "themes": [
-        "-themes/Gentle.json"
-      ]
+      "themes": ["-themes/Gentle.json"]
     },
     {
-      "extensions": [
-        "+extensions/index.ts"
-      ],
+      "extensions": ["+extensions/index.ts"],
       "source": "npm:@hypabolic/pi-hypa"
     },
     "npm:pi-web-access",
@@ -55,7 +38,6 @@
     "npm:pi-btw",
     "npm:gentle-engram",
     "npm:gentle-engram@0.2.0",
-    "npm:pi-mcp-adapter",
     "git:github.com/DietrichGebert/ponytail"
   ],
   "quietStartup": true,
