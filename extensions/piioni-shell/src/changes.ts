@@ -1,4 +1,6 @@
-import { readFile } from "node:fs/promises";
+import { createReadStream } from "node:fs";
+import { stat } from "node:fs/promises";
+import { resolve } from "node:path";
 import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
 
 export type ChangeStatus = "modified" | "added" | "deleted" | "renamed" | "untracked";
@@ -51,28 +53,130 @@ export function changesFingerprint(model: ChangesModel): string {
   return model.files.map((file) => `${file.path}:${file.status}:${file.added}:${file.deleted}`).join("|");
 }
 
-export async function countLines(root: string, path: string): Promise<number> {
+interface FileMetadata {
+  size: number;
+  mtimeMs: number;
+  ctimeMs: number;
+  ino: number;
+  dev: number;
+}
+
+interface CachedLineCount extends FileMetadata {
+  lines: number;
+}
+
+function metadataMatches(left: FileMetadata, right: FileMetadata): boolean {
+  return left.size === right.size && left.mtimeMs === right.mtimeMs && left.ctimeMs === right.ctimeMs && left.ino === right.ino && left.dev === right.dev;
+}
+
+async function fileMetadata(path: string): Promise<FileMetadata | undefined> {
   try {
-    const text = await readFile(`${root}/${path}`, "utf8");
-    if (text.length === 0) return 0;
-    const lineCount = text.split("\n").length;
-    return text.endsWith("\n") ? lineCount - 1 : lineCount;
+    const info = await stat(path);
+    if (!info.isFile()) return undefined;
+    return { size: info.size, mtimeMs: info.mtimeMs, ctimeMs: info.ctimeMs, ino: info.ino, dev: info.dev };
   } catch {
-    return 0;
+    return undefined;
   }
 }
 
-export async function readChanges(git: GitRunner, root: string): Promise<ChangesModel | undefined> {
-  const [numstat, status] = await Promise.all([
-    git(["diff", "--numstat", "HEAD"]),
-    git(["status", "--porcelain=v1", "--untracked-files=all", "-z"]),
-  ]);
-  if (status.code !== 0) return undefined;
-  const untracked = new Map<string, number>();
-  for (const file of parseStatus(status.stdout)) {
-    if (file.status === "untracked") untracked.set(file.path, await countLines(root, file.path));
+async function streamLineCount(path: string): Promise<number> {
+  let bytes = 0;
+  let newlines = 0;
+  let lastByte = -1;
+  let hasNul = false;
+  const stream = createReadStream(path);
+  for await (const chunk of stream) {
+    const buffer = chunk as Buffer;
+    if (buffer.includes(0)) {
+      hasNul = true;
+      // Exiting the async iterator destroys the stream instead of draining binary content.
+      break;
+    }
+    bytes += buffer.length;
+    for (const byte of buffer) {
+      if (byte === 10) newlines += 1;
+      lastByte = byte;
+    }
   }
-  return buildChanges(numstat.stdout, status.stdout, untracked);
+  if (hasNul || bytes === 0) return 0;
+  return newlines + (lastByte === 10 ? 0 : 1);
+}
+
+export interface ChangesReader {
+  read(git: GitRunner, root: string): Promise<ChangesModel | undefined>;
+  clear(): void;
+}
+
+export function createChangesReader(): ChangesReader {
+  const cache = new Map<string, CachedLineCount>();
+  let cachedRoot: string | undefined;
+  let generation = 0;
+
+  const clear = () => {
+    generation += 1;
+    cache.clear();
+    cachedRoot = undefined;
+  };
+
+  const selectRoot = (root: string) => {
+    if (root === cachedRoot) return;
+    generation += 1;
+    cache.clear();
+    cachedRoot = root;
+  };
+
+  return {
+    clear,
+    async read(git, root) {
+      selectRoot(root);
+      const readGeneration = generation;
+      const isCurrent = () => generation === readGeneration && cachedRoot === root;
+      const [numstat, status] = await Promise.all([
+        git(["diff", "--numstat", "HEAD"]),
+        git(["status", "--porcelain=v1", "--untracked-files=all", "-z"]),
+      ]);
+      if (status.code !== 0) return undefined;
+      const untracked = parseStatus(status.stdout).filter((file) => file.status === "untracked");
+      if (isCurrent()) {
+        const livePaths = new Set(untracked.map((file) => file.path));
+        for (const path of cache.keys()) if (!livePaths.has(path)) cache.delete(path);
+      }
+
+      const counts = new Map<string, number>();
+      for (const file of untracked) {
+        const absolutePath = resolve(root, file.path);
+        let count = 0;
+        // Retry once if metadata changes while streaming; never retain an unstable observation.
+        for (let attempt = 0; attempt < 2; attempt += 1) {
+          const before = await fileMetadata(absolutePath);
+          if (!before) {
+            if (isCurrent()) cache.delete(file.path);
+            break;
+          }
+          const cached = isCurrent() ? cache.get(file.path) : undefined;
+          if (cached && metadataMatches(cached, before)) {
+            count = cached.lines;
+            break;
+          }
+          try {
+            count = await streamLineCount(absolutePath);
+          } catch {
+            if (isCurrent()) cache.delete(file.path);
+            break;
+          }
+          const after = await fileMetadata(absolutePath);
+          if (after && metadataMatches(before, after)) {
+            if (isCurrent()) cache.set(file.path, { ...after, lines: count });
+            break;
+          }
+          if (isCurrent()) cache.delete(file.path);
+          count = 0;
+        }
+        counts.set(file.path, count);
+      }
+      return buildChanges(numstat.stdout, status.stdout, counts);
+    },
+  };
 }
 
 export function renderChangesWidget(model: ChangesModel, theme: { fg(color: string, text: string): string }, width: number, command = "/gentle:changes"): string[] {

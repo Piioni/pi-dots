@@ -3,8 +3,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --experimental-strip-types --test src/*.test.ts",
-    "typecheck": "tsc --project tsconfig.json"
+    "test": "node --experimental-strip-types --import ./test/runtime.ts --test test/*.test.ts",
+    "typecheck": "node ../ui-overhaul/node_modules/typescript/bin/tsc --project tsconfig.json"
   },
   "peerDependencies": {
     "@earendil-works/pi-coding-agent": "*",

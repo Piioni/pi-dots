@@ -1,7 +1,7 @@
 import type { ExtensionAPI, ExtensionContext, ReadonlyFooterDataProvider } from "@earendil-works/pi-coding-agent";
 import type { Theme } from "@earendil-works/pi-coding-agent";
 import { showChangesOverlay } from "./changes-overlay.ts";
-import { changesFingerprint, readChanges, renderChangesWidget, type ChangesModel } from "./changes.ts";
+import { changesFingerprint, createChangesReader, renderChangesWidget, type ChangesModel } from "./changes.ts";
 import {
   accountIdFromToken,
   buildFooterModel,
@@ -17,7 +17,9 @@ import { pickWorkingMessage } from "./working-messages.ts";
 const CHANGES_WIDGET = "piioni-shell-changes";
 const CHANGES_COMMAND = "gentle:changes";
 const USAGE_COMMAND = "gentle:usage";
-const DEFAULT_WATCH_MS = 5000;
+const DEFAULT_ACTIVE_WATCH_MS = 5000;
+const DEFAULT_IDLE_WATCH_MS = 30_000;
+const TOOL_REFRESH_DELAY_MS = 175;
 const FOOTER_CACHE_MS = 1000;
 const DEFAULT_SHORTCUT = "alt+g";
 const WORKING_ANIMATION_MS = 500;
@@ -31,11 +33,20 @@ type FooterComponent = {
 
 type ShellTheme = Pick<Theme, "fg" | "bold">;
 
-function positiveMs(value: string | undefined, fallback: number): number | undefined {
+type WatchPolicy = { kind: "adaptive" } | { kind: "disabled" } | { kind: "fixed"; intervalMs: number };
+
+function watchPolicy(value: string | undefined): WatchPolicy {
   const normalized = value?.trim().toLowerCase();
-  if (normalized === "off" || normalized === "0") return undefined;
+  if (normalized === "off" || normalized === "0") return { kind: "disabled" };
   const parsed = Number.parseInt(normalized ?? "", 10);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+  if (Number.isFinite(parsed) && parsed > 0) return { kind: "fixed", intervalMs: parsed };
+  return { kind: "adaptive" };
+}
+
+function watchDelay(policy: WatchPolicy, active: boolean): number | undefined {
+  if (policy.kind === "disabled") return undefined;
+  if (policy.kind === "fixed") return policy.intervalMs;
+  return active ? DEFAULT_ACTIVE_WATCH_MS : DEFAULT_IDLE_WATCH_MS;
 }
 
 function gitRunner(pi: ExtensionAPI, root: string) {
@@ -100,11 +111,15 @@ export default function piioniShell(pi: ExtensionAPI): void {
   if (!shellEnabled()) return;
 
   const usage = createUsageStore();
+  const changesReader = createChangesReader();
   let sessionToken: object | undefined;
   let root = "";
   let model: ChangesModel = { files: [], added: 0, deleted: 0 };
   let fingerprint = "";
-  let watch: NodeJS.Timeout | undefined;
+  let pollTimer: NodeJS.Timeout | undefined;
+  let pollGeneration = 0;
+  let watchConfig: WatchPolicy = { kind: "adaptive" };
+  let toolRefreshTimer: NodeJS.Timeout | undefined;
   let refreshInFlight: Promise<void> | undefined;
   let refreshGeneration = 0;
   let refreshPending = false;
@@ -123,41 +138,128 @@ export default function piioniShell(pi: ExtensionAPI): void {
   let workingAnimation: NodeJS.Timeout | undefined;
   let previousEditor: Parameters<ExtensionContext["ui"]["setEditorComponent"]>[0];
   let usageFetchedAt = 0;
+  type UsageRequest = {
+    session: object;
+    controller: AbortController;
+    timer?: NodeJS.Timeout;
+    promise: Promise<void>;
+    release?: () => void;
+  };
+  let usageRequest: UsageRequest | undefined;
+
+  const cancelUsageRequest = () => {
+    const request = usageRequest;
+    usageRequest = undefined;
+    if (!request) return;
+    clearTimeout(request.timer);
+    request.controller.abort();
+    request.release?.();
+  };
 
   const refreshUsage = async (ctx: ExtensionContext, force: boolean) => {
     const activeToken = sessionToken;
-    try {
-      if (!activeToken || ctx.model?.provider !== CODEX_PROVIDER) return;
-      const now = Date.now();
-      if (!force && now - usageFetchedAt < 5 * 60_000) return;
-      usageFetchedAt = now;
-      const token = await ctx.modelRegistry.getApiKeyForProvider(CODEX_PROVIDER).catch(() => undefined);
-      if (sessionToken !== activeToken || !token) return;
-      const accountId = accountIdFromToken(token);
-      if (!accountId) return;
-      const response = await fetch(CODEX_USAGE_URL, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "chatgpt-account-id": accountId,
-          originator: "pi",
-          "User-Agent": "piioni-shell",
-        },
-      });
-      if (sessionToken !== activeToken || !response.ok) return;
-      const payload: unknown = await response.json();
-      if (sessionToken !== activeToken) return;
-      if (usage.recordCodexPayload(CODEX_PROVIDER, payload)) {
-        invalidateFooter?.();
-        requestRender?.();
+    if (!activeToken || ctx.model?.provider !== CODEX_PROVIDER) return;
+    if (usageRequest?.session === activeToken) return usageRequest.promise;
+    if (!force && Date.now() - usageFetchedAt < 5 * 60_000) return;
+
+    const request: UsageRequest = {
+      session: activeToken,
+      controller: new AbortController(),
+      promise: Promise.resolve(),
+    };
+    usageFetchedAt = Date.now();
+    usageRequest = request;
+    let release!: () => void;
+    const deadline = new Promise<void>((resolve) => { release = resolve; });
+    request.release = release;
+    request.timer = setTimeout(() => {
+      if (usageRequest === request) usageRequest = undefined;
+      request.controller.abort();
+      release();
+    }, 10_000);
+    request.timer.unref();
+    const isCurrent = () => usageRequest === request && sessionToken === request.session && !request.controller.signal.aborted;
+
+    const work = (async () => {
+      try {
+        const token = await ctx.modelRegistry.getApiKeyForProvider(CODEX_PROVIDER).catch(() => undefined);
+        if (!isCurrent() || !token) return;
+        const accountId = accountIdFromToken(token);
+        if (!accountId || !isCurrent()) return;
+        const response = await fetch(CODEX_USAGE_URL, {
+          signal: request.controller.signal,
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "chatgpt-account-id": accountId,
+            originator: "pi",
+            "User-Agent": "piioni-shell",
+          },
+        });
+        if (!isCurrent() || !response.ok) return;
+        const payload: unknown = await response.json();
+        if (!isCurrent()) return;
+        if (usage.recordCodexPayload(CODEX_PROVIDER, payload)) {
+          invalidateFooter?.();
+          requestRender?.();
+        }
+      } catch {
+        // Usage is optional; auth/network failures must not affect the shell.
       }
-    } catch {
-      // Usage is optional; auth/network failures must not affect the shell.
-    }
+    })();
+    request.promise = Promise.race([work, deadline]).finally(() => {
+      clearTimeout(request.timer);
+      if (usageRequest === request) usageRequest = undefined;
+    });
+    return request.promise;
   };
 
-  const stopWatch = () => {
-    if (watch) clearInterval(watch);
-    watch = undefined;
+  const stopPolling = () => {
+    pollGeneration += 1;
+    if (pollTimer) clearTimeout(pollTimer);
+    pollTimer = undefined;
+  };
+
+  const armPolling = (ctx: ExtensionContext, token: object, expectedRoot: string, generation: number) => {
+    if (generation !== pollGeneration || sessionToken !== token || root !== expectedRoot || pollTimer) return;
+    const delay = watchDelay(watchConfig, workingState.active);
+    if (delay === undefined) return;
+    const timer = setTimeout(() => {
+      if (pollTimer !== timer) return;
+      pollTimer = undefined;
+      if (generation !== pollGeneration || sessionToken !== token || root !== expectedRoot) return;
+      const currentRefresh = refreshInFlight;
+      if (currentRefresh) {
+        void currentRefresh.finally(() => armPolling(ctx, token, expectedRoot, generation));
+        return;
+      }
+      void refresh(ctx).finally(() => armPolling(ctx, token, expectedRoot, generation));
+    }, delay);
+    pollTimer = timer;
+    timer.unref();
+  };
+
+  const restartPolling = (ctx: ExtensionContext) => {
+    stopPolling();
+    const token = sessionToken;
+    const expectedRoot = root;
+    if (token && expectedRoot) armPolling(ctx, token, expectedRoot, pollGeneration);
+  };
+
+  const stopToolRefresh = () => {
+    if (toolRefreshTimer) clearTimeout(toolRefreshTimer);
+    toolRefreshTimer = undefined;
+  };
+
+  const scheduleToolRefresh = (ctx: ExtensionContext) => {
+    if (toolRefreshTimer || !sessionToken || !root) return;
+    const scheduledToken = sessionToken;
+    const scheduledRoot = root;
+    toolRefreshTimer = setTimeout(() => {
+      toolRefreshTimer = undefined;
+      if (sessionToken !== scheduledToken || root !== scheduledRoot) return;
+      void refresh(ctx);
+    }, TOOL_REFRESH_DELAY_MS);
+    toolRefreshTimer.unref();
   };
 
   const stopWorkingAnimation = () => {
@@ -198,7 +300,7 @@ export default function piioniShell(pi: ExtensionAPI): void {
     const operation = (async () => {
       try {
         if (!root || !activeToken) return;
-        const next = await readChanges(gitRunner(pi, root), root);
+        const next = await changesReader.read(gitRunner(pi, root), root);
         if (!next || sessionToken !== activeToken) return;
         const nextFingerprint = changesFingerprint(next);
         if (nextFingerprint === fingerprint) return;
@@ -234,7 +336,7 @@ export default function piioniShell(pi: ExtensionAPI): void {
 
   const openChanges = async (ctx: ExtensionContext) => {
     if (ctx.mode !== "tui" || !root) return;
-    const latest = await readChanges(gitRunner(pi, root), root);
+    const latest = await changesReader.read(gitRunner(pi, root), root);
     if (!latest || latest.files.length === 0) {
       ctx.ui.notify("No changes in the working tree.", "info");
       return;
@@ -253,8 +355,9 @@ export default function piioniShell(pi: ExtensionAPI): void {
   pi.registerCommand(USAGE_COMMAND, {
     description: "Show provider subscription usage and refresh Codex limits.",
     handler: async (_args, ctx) => {
+      const activeToken = sessionToken;
       await refreshUsage(ctx, true);
-      if (ctx.mode === "tui") await showUsageOverlay(ctx, usage);
+      if (activeToken && sessionToken === activeToken && ctx.mode === "tui") await showUsageOverlay(ctx, usage);
     },
   });
 
@@ -276,9 +379,14 @@ export default function piioniShell(pi: ExtensionAPI): void {
   pi.on("session_compact", invalidateFooterAndRender);
 
   pi.on("session_start", async (_event, ctx) => {
-    stopWatch();
+    cancelUsageRequest();
+    stopToolRefresh();
+    stopPolling();
+    changesReader.clear();
     stopWorkingAnimation();
     sessionToken = undefined;
+    root = "";
+    watchConfig = watchPolicy(process.env.PIIONI_SHELL_CHANGES_WATCH_MS);
     requestRender = undefined;
     invalidateFooter = undefined;
     previousEditor = undefined;
@@ -317,40 +425,48 @@ export default function piioniShell(pi: ExtensionAPI): void {
       requestRender = () => tui.requestRender();
       return new PiioniPromptEditor(tui, theme, keybindings, ctx, promptWorkingState);
     });
-    void refresh(ctx);
-    const watchMs = positiveMs(process.env.PIIONI_SHELL_CHANGES_WATCH_MS, DEFAULT_WATCH_MS);
-    if (watchMs) {
-      watch = setInterval(() => void refresh(ctx), watchMs);
-      watch.unref();
-    }
+    const token = sessionToken;
+    const pollRoot = root;
+    const generation = pollGeneration;
+    void refresh(ctx).finally(() => armPolling(ctx, token, pollRoot, generation));
   });
 
-  pi.on("agent_start", (_event, _ctx) => {
+  pi.on("agent_start", (_event, ctx) => {
     if (!sessionToken) return;
     if (!workingState.active) {
       workingState.active = true;
       workingState.message = pickWorkingMessage();
       startWorkingAnimation();
+      restartPolling(ctx);
     }
     requestRender?.();
   });
   pi.on("agent_settled", async (_event, ctx) => {
-    if (!sessionToken) return;
+    const activeToken = sessionToken;
+    if (!activeToken) return;
     stopWorkingAnimation();
     workingState.active = false;
     workingState.message = undefined;
     workingState.elapsedSeconds = 0;
+    restartPolling(ctx);
     invalidateFooter?.();
     requestRender?.();
+    stopToolRefresh();
     await refresh(ctx);
+    if (sessionToken !== activeToken) return;
     void refreshUsage(ctx, false);
   });
-  pi.on("tool_execution_end", async (_event, ctx) => {
-    if (sessionToken) await refresh(ctx);
+  pi.on("tool_execution_end", (event, ctx) => {
+    if (!sessionToken) return;
+    const annotations = pi.getAllTools().find((tool) => tool.name === event.toolName)?.annotations;
+    if (annotations?.readOnlyHint === true && annotations.destructiveHint !== true) return;
+    scheduleToolRefresh(ctx);
   });
   pi.on("session_shutdown", (_event, ctx) => {
+    cancelUsageRequest();
+    stopToolRefresh();
+    stopPolling();
     if (!sessionToken) return;
-    stopWatch();
     stopWorkingAnimation();
     ctx.ui.setWidget(CHANGES_WIDGET, undefined);
     ctx.ui.setFooter(undefined);
@@ -364,6 +480,7 @@ export default function piioniShell(pi: ExtensionAPI): void {
     sessionToken = undefined;
     refreshPending = false;
     root = "";
+    changesReader.clear();
     requestRender = undefined;
     invalidateFooter = undefined;
     previousEditor = undefined;
