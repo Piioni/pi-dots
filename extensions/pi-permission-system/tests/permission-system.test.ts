@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
@@ -3483,6 +3483,76 @@ await runAsyncTest("Forwarded permission warning is only shown when debug config
   } finally {
     rmSync(baseDir, { recursive: true, force: true });
     delete process.env[PERMISSION_FORWARDING_AGENT_DIR_ENV_KEY];
+  }
+});
+
+await runAsyncTest("Forwarded permission rejects contradictory approval fields before an ask-gated tool can proceed", async () => {
+  const baseDir = mkdtempSync(join(tmpdir(), "pi-permission-system-fwd-conflict-"));
+  const originalEnv = new Map([
+    ["PI_IS_SUBAGENT", process.env.PI_IS_SUBAGENT],
+    [SUBAGENT_PARENT_SESSION_ENV_KEY, process.env[SUBAGENT_PARENT_SESSION_ENV_KEY]],
+    [PERMISSION_FORWARDING_AGENT_DIR_ENV_KEY, process.env[PERMISSION_FORWARDING_AGENT_DIR_ENV_KEY]],
+  ]);
+  process.env.PI_IS_SUBAGENT = "1";
+  process.env[SUBAGENT_PARENT_SESSION_ENV_KEY] = "parent-session";
+  process.env[PERMISSION_FORWARDING_AGENT_DIR_ENV_KEY] = baseDir;
+  const harness = createToolCallHarness(
+    { defaultPolicy: { tools: "ask", bash: "ask", mcp: "ask", skills: "ask", special: "ask" } },
+    ["weather_lookup"],
+  );
+  const location = createPermissionForwardingLocation(
+    join(baseDir, "sessions", "permission-forwarding"),
+    "parent-session",
+  );
+  mkdirSync(location.requestsDir, { recursive: true });
+  mkdirSync(location.responsesDir, { recursive: true });
+
+  try {
+    setExtensionConfig({ debug: false, yoloMode: false, forwardedPromptTimeoutSeconds: 30 });
+    const call = Promise.resolve(harness.handlers.tool_call?.(
+      { toolName: "weather_lookup", toolCallId: "conflicting-forwarded-approval", input: { city: "Paris" } },
+      createMockContext(harness.cwd, harness.prompts),
+    ));
+    let request: Record<string, unknown> | undefined;
+    for (let attempt = 0; attempt < 200 && !request; attempt += 1) {
+      const requestPath = readdirSync(location.requestsDir)[0];
+      if (requestPath) {
+        request = JSON.parse(readFileSync(join(location.requestsDir, requestPath), "utf8")) as Record<string, unknown>;
+      } else {
+        await new Promise((resolve) => setTimeout(resolve, 5));
+      }
+    }
+    assert.ok(request, "the ask-gated tool should create a forwarded permission request");
+    const responsePath = join(location.responsesDir, `${String(request.id)}.json`);
+    const response = {
+      requestId: request.id,
+      responseNonce: request.responseNonce,
+      approved: true,
+      state: "denied",
+      responderSessionId: "parent-session",
+      respondedAt: Date.now(),
+    };
+    mkdirSync(location.responsesDir, { recursive: true });
+    writeFileSync(responsePath, JSON.stringify(response), "utf8");
+
+    // Let the requester reject and consume the contradictory response, then
+    // provide a consistent denial so the real ask-gated call can finish.
+    for (let attempt = 0; attempt < 400 && existsSync(responsePath); attempt += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 5));
+    }
+    assert.equal(existsSync(responsePath), false, "the contradictory response should be rejected and consumed");
+    mkdirSync(location.responsesDir, { recursive: true });
+    writeFileSync(responsePath, JSON.stringify({ ...response, approved: false }), "utf8");
+
+    const result = await call as Record<string, unknown>;
+    assert.equal(result.block, true, "a denied forwarded state must not authorize the ask-gated tool");
+  } finally {
+    await harness.cleanup();
+    rmSync(baseDir, { recursive: true, force: true });
+    for (const [key, value] of originalEnv) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
   }
 });
 

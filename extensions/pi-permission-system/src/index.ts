@@ -954,6 +954,7 @@ async function readForwardedPermissionResponse(filePath: string): Promise<Forwar
       || typeof parsed.responseNonce !== "string"
       || typeof parsed.approved !== "boolean"
       || !isPermissionDecisionState(parsed.state)
+      || parsed.approved !== (parsed.state === "approved" || parsed.state === "once" || parsed.state === "always")
       || typeof parsed.responderSessionId !== "string"
     ) {
       logPermissionForwardingWarning(`Ignoring invalid forwarded permission response format in '${filePath}'`);

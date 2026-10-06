@@ -1,6 +1,7 @@
 export type UserMessageRenderFn = (width: number) => string[];
 
 const USER_MESSAGE_PATCH_OWNER = {};
+const installedPatchRenders = new WeakMap<PatchableUserMessagePrototype, UserMessageRenderFn>();
 
 export interface PatchableUserMessagePrototype {
   render: UserMessageRenderFn;
@@ -14,9 +15,14 @@ export function unregisterUserMessageRenderPrototypePatch(
   prototype: PatchableUserMessagePrototype,
 ): void {
   const originalRender = prototype.__piUserMessageOriginalRender;
-  if (typeof originalRender === "function") {
+  if (
+    typeof originalRender === "function"
+    && prototype.__piUserMessagePatchOwner === USER_MESSAGE_PATCH_OWNER
+    && installedPatchRenders.get(prototype) === prototype.render
+  ) {
     prototype.render = originalRender;
   }
+  installedPatchRenders.delete(prototype);
 
   delete prototype.__piUserMessageOriginalRender;
   delete prototype.__piUserMessageNativePatched;
@@ -41,6 +47,7 @@ export function patchUserMessageRenderPrototype(
 
   if (hasPreviousPatch && !isCurrentPatch) {
     prototype.render = previousOriginalRender;
+    installedPatchRenders.delete(prototype);
     delete prototype.__piUserMessageNativePatched;
     delete prototype.__piUserMessagePatchVersion;
     delete prototype.__piUserMessagePatchOwner;
@@ -65,7 +72,9 @@ export function patchUserMessageRenderPrototype(
     return;
   }
 
-  prototype.render = buildRender(originalRender);
+  const patchedRender = buildRender(originalRender);
+  prototype.render = patchedRender;
+  installedPatchRenders.set(prototype, patchedRender);
   prototype.__piUserMessageNativePatched = true;
   prototype.__piUserMessagePatchVersion = patchVersion;
   prototype.__piUserMessagePatchOwner = USER_MESSAGE_PATCH_OWNER;
