@@ -1,9 +1,10 @@
 # Gentle AI runtime (installed by package — pi install/update restores them)
 gentle-ai/
+agents/
 chains/
 pi-pretty/
 odd/
-/gentle-agents/
+gentle-agents/
 
 # Sessions — large and ephemeral
 sessions/
@@ -16,12 +17,16 @@ auth.json
 
 # MCP cache and model store
 mcp-cache.json
+mcp-onboarding.json
 models-store.json
-npm/
 
 # Local Pi runtime state
 .atl/
+trust.json
 
 # cosas
+permission-mode-state.json
 disabled-extensions/
 figma.json
+crashes.json
+git/

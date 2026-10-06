@@ -17,8 +17,7 @@
     "task": "allow",
     "fetch_content": "allow",
     "ask_user_question": "allow",
-
-    "web_search": "ask",
+    "web_search": "allow",
 
     "read:**/.env": "deny",
     "read:**/.env.*": "deny",

@@ -4,16 +4,19 @@
   "compaction": {
     "enabled": true
   },
-  "defaultModel": "gpt-5.6-luna",
+  "defaultModel": "gpt-6-luna",
   "defaultProvider": "openai-codex",
   "defaultThinkingLevel": "high",
   "editorPaddingX": 1,
   "enableInstallTelemetry": false,
   "extensions": [
-    "/home/piioni/.pi/agent/extensions/piioni-shell"
+    "/home/piioni/.pi/agent/extensions/piioni-shell",
+    "/home/piioni/.pi/agent/extensions/pi-permission-system",
+    "/home/piioni/.pi/agent/extensions/pi-tool-display",
+    "-builtin:mcp"
   ],
   "hideThinkingBlock": true,
-  "lastChangelogVersion": "0.87.0",
+  "lastChangelogVersion": "1.0.4",
   "markdown": {
     "mermaid": "streaming"
   },
@@ -36,27 +39,24 @@
         "-skills/chained-pr/SKILL.md",
         "-skills/issue-creation/SKILL.md"
       ],
-      "source": "npm:gentle-pi@3.3.0",
+      "source": "npm:gentle-pi",
       "themes": [
         "-themes/Gentle.json"
       ]
     },
-    "npm:pi-tool-display",
     {
       "extensions": [
         "+extensions/index.ts"
       ],
       "source": "npm:@hypabolic/pi-hypa"
     },
-    "npm:@juicesharp/rpiv-ask-user-question",
-    "npm:@monotykamary/pi-vcc@0.8.6",
-    "npm:pi-permission-system",
     "npm:pi-web-access",
     "npm:pi-lens",
     "npm:pi-btw",
-    "npm:pi-figma",
-    "npm:gentle-engram@0.1.14",
-    "npm:pi-mcp-adapter"
+    "npm:gentle-engram",
+    "npm:gentle-engram@0.2.0",
+    "npm:pi-mcp-adapter",
+    "git:github.com/DietrichGebert/ponytail"
   ],
   "quietStartup": true,
   "showCacheMissNotices": true,
