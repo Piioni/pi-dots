@@ -1,0 +1,12 @@
+{
+  "name": "figma-context",
+  "private": true,
+  "type": "module",
+  "description": "Human-invoked read-only Figma context handoff for Pi",
+  "exports": "./index.ts",
+  "devDependencies": {
+    "@earendil-works/pi-coding-agent": "0.87.1",
+    "@types/node": "^24.0.0",
+    "typescript": "^5.8.0"
+  }
+}
