@@ -14,6 +14,11 @@ const socketEndpoint =
   process.platform === "win32" && socketPath ? `\\\\.\\pipe\\${socketPath}` : socketPath;
 const paneId = process.env.HERDR_PANE_ID;
 const source = "herdr:pi";
+const isSubagentProcess =
+  process.env.PI_IS_SUBAGENT === "1" ||
+  Boolean(process.env.PI_SUBAGENT_SESSION_ID?.trim()) ||
+  Boolean(process.env.PI_AGENT_ROUTER_SUBAGENT?.trim()) ||
+  Boolean(process.env.PI_AGENT_ROUTER_PARENT_SESSION_ID?.trim());
 
 function enabled() {
   return HERDR_ENV === "1" && !!socketPath && !!paneId;
@@ -229,7 +234,7 @@ export default function (pi) {
   pi.on("session_start", async (event, ctx) => {
     // TUI only: RPC/JSON/print modes are headless (no PTY herdr can display),
     // and RPC still reports hasUI=true, so mode is the reliable gate.
-    if (ctx?.mode !== "tui") {
+    if (ctx?.mode !== "tui" || isSubagentProcess) {
       return;
     }
     rootSession = true;
