@@ -1,52 +1,50 @@
 {
-  "defaultModel": "gpt-6-luna",
   "defaultProvider": "openai-codex",
+  "defaultModel": "gpt-6-luna",
   "defaultThinkingLevel": "high",
-  "theme": "catppuccin-mocha",
-  "tuiMode": "fullscreen",
-  "steeringMode": "one-at-a-time",
-  "lastChangelogVersion": "1.0.4",
-  "quietStartup": false,
-  "enableInstallTelemetry": false,
-  "showCacheMissNotices": true,
-  "hideThinkingBlock": true,
-  "autocompleteMaxVisible": 5,
-  "collapseChangelog": false,
-  "outputPad": 1,
-  "editorPaddingX": 1,
   "compaction": {
     "enabled": true
+  },
+  "steeringMode": "one-at-a-time",
+  "hideThinkingBlock": true,
+  "collapseChangelog": false,
+  "showCacheMissNotices": true,
+  "enableInstallTelemetry": false,
+  "quietStartup": false,
+  "theme": "catppuccin-mocha",
+  "tuiMode": "fullscreen",
+  "editorPaddingX": 1,
+  "outputPad": 1,
+  "autocompleteMaxVisible": 5,
+  "markdown": {
+    "mermaid": "streaming"
   },
   "terminal": {
     "clearOnShrink": true,
     "showTerminalProgress": true
   },
-  "markdown": {
-    "mermaid": "streaming"
-  },
   "extensions": [
     "/home/piioni/.pi/agent/extensions/piioni-shell",
     "/home/piioni/.pi/agent/extensions/pi-permission-system",
-    "/home/piioni/.pi/agent/extensions/pi-tool-display",
-    "-builtin:mcp"
+    "/home/piioni/.pi/agent/extensions/pi-tool-display"
   ],
   "packages": [
     {
-      "extensions": ["+extensions/gentle-ai.ts", "-extensions/quiet-tools.ts", "-extensions/gentle-shell.ts"],
-      "prompts": ["-prompts/gcl.md", "-prompts/gis.md", "-prompts/gpr.md", "-prompts/gwr.md"],
-      "skills": ["-skills/branch-pr/SKILL.md", "-skills/chained-pr/SKILL.md", "-skills/issue-creation/SKILL.md"],
       "source": "npm:gentle-pi",
-      "themes": ["-themes/Gentle.json"]
+      "extensions": ["+extensions/gentle-ai.ts", "-extensions/quiet-tools.ts", "-extensions/gentle-shell.ts"],
+      "prompts": [],
+      "skills": ["+skills/chained-pr/SKILL.md"],
+      "themes": []
     },
     {
-      "extensions": ["+extensions/index.ts"],
-      "source": "npm:@hypabolic/pi-hypa"
+      "source": "npm:@hypabolic/pi-hypa",
+      "extensions": ["+extensions/index.ts"]
     },
-    "npm:pi-mcp-adapter",
     "npm:pi-web-access",
     "npm:pi-lens",
     "npm:pi-btw",
-    "npm:gentle-engram@0.2.0",
+    "npm:gentle-engram",
     "git:github.com/DietrichGebert/ponytail"
-  ]
+  ],
+  "lastChangelogVersion": "1.0.4"
 }
