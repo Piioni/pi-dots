@@ -1,6 +1,8 @@
 ---
 name: jd-judge-b
 description: Judgment Day blind adversarial reviewer B. Read-only; independently reports findings and does not fix code.
+model: openai-codex/gpt-5.6-terra
+thinking: high
 tools:
   - "*": false
   - read

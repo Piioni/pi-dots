@@ -18,8 +18,8 @@
       "command": "node"
     },
     "linear": {
-      "url": "https://mcp.linear.app/mcp",
-      "auth": "oauth"
+      "auth": "oauth",
+      "url": "https://mcp.linear.app/mcp"
     }
   }
 }
