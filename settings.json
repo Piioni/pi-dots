@@ -1,26 +1,35 @@
 {
-  "autocompleteMaxVisible": 5,
-  "collapseChangelog": false,
-  "compaction": {
-    "enabled": true
-  },
   "defaultModel": "gpt-6-luna",
   "defaultProvider": "openai-codex",
   "defaultThinkingLevel": "high",
-  "editorPaddingX": 1,
+  "theme": "catppuccin-mocha",
+  "tuiMode": "fullscreen",
+  "steeringMode": "one-at-a-time",
+  "lastChangelogVersion": "1.0.4",
+  "quietStartup": false,
   "enableInstallTelemetry": false,
+  "showCacheMissNotices": true,
+  "hideThinkingBlock": true,
+  "autocompleteMaxVisible": 5,
+  "collapseChangelog": false,
+  "outputPad": 1,
+  "editorPaddingX": 1,
+  "compaction": {
+    "enabled": true
+  },
+  "terminal": {
+    "clearOnShrink": true,
+    "showTerminalProgress": true
+  },
+  "markdown": {
+    "mermaid": "streaming"
+  },
   "extensions": [
     "/home/piioni/.pi/agent/extensions/piioni-shell",
     "/home/piioni/.pi/agent/extensions/pi-permission-system",
     "/home/piioni/.pi/agent/extensions/pi-tool-display",
     "-builtin:mcp"
   ],
-  "hideThinkingBlock": true,
-  "lastChangelogVersion": "1.0.4",
-  "markdown": {
-    "mermaid": "streaming"
-  },
-  "outputPad": 1,
   "packages": [
     {
       "extensions": ["+extensions/gentle-ai.ts", "-extensions/quiet-tools.ts", "-extensions/gentle-shell.ts"],
@@ -33,20 +42,11 @@
       "extensions": ["+extensions/index.ts"],
       "source": "npm:@hypabolic/pi-hypa"
     },
+    "npm:pi-mcp-adapter",
     "npm:pi-web-access",
     "npm:pi-lens",
     "npm:pi-btw",
-    "npm:gentle-engram",
     "npm:gentle-engram@0.2.0",
     "git:github.com/DietrichGebert/ponytail"
-  ],
-  "quietStartup": true,
-  "showCacheMissNotices": true,
-  "steeringMode": "one-at-a-time",
-  "terminal": {
-    "clearOnShrink": true,
-    "showTerminalProgress": true
-  },
-  "theme": "catppuccin-mocha",
-  "tuiMode": "fullscreen"
+  ]
 }
