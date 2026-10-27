@@ -1,0 +1,63 @@
+{
+  "$schema": "https://raw.githubusercontent.com/gotgenes/pi-packages/main/packages/pi-permission-system/schemas/permissions.schema.json",
+  "debugLog": false,
+  "permissionReviewLog": true,
+  "yoloMode": false,
+  "forwardingTimeoutMs": 30000,
+  "permission": {
+    "*": "allow",
+    "path": {
+      "**/.env": "deny",
+      "**/.env.*": "deny",
+      "**/*.pem": "deny",
+      "**/*.key": "deny",
+      "**/*.p12": "deny",
+      "**/*.jks": "deny",
+      "**/*.keystore": "deny",
+      "**/secrets/**": "deny",
+      "/home/piioni/.ssh/**": "deny",
+      "/home/piioni/.gnupg/**": "deny",
+      "/home/piioni/.aws/**": "deny",
+      "/home/piioni/.config/gh/**": "deny",
+      "/home/piioni/.claude/.credentials.json": "deny",
+      "/home/piioni/.netrc": "deny",
+      "/home/piioni/.npmrc": "deny",
+      "/home/piioni/.docker/config.json": "deny"
+    },
+    "path_write": {
+      "/etc/**": "deny"
+    },
+    "external_directory": {
+      "/home/piioni/.ssh/**": "deny",
+      "/home/piioni/.gnupg/**": "deny",
+      "/home/piioni/.aws/**": "deny",
+      "/home/piioni/.config/gh/**": "deny",
+      "/home/piioni/.claude/.credentials.json": "deny",
+      "/home/piioni/.netrc": "deny",
+      "/home/piioni/.npmrc": "deny",
+      "/home/piioni/.docker/config.json": "deny"
+    },
+    "bash": {
+      "git push *": "ask",
+      "git reset --hard *": "ask",
+      "git clean *": "ask",
+      "git worktree remove *": "ask",
+      "rm *": "ask",
+      "kill *": "ask",
+      "pkill *": "ask",
+      "gh pr create *": "ask",
+      "gh pr merge *": "ask",
+      "gh release *": "ask",
+      "sudo*": "deny"
+    },
+    "mcp": {
+      "*": "allow",
+      "linear:*": "ask",
+      "linear:get_*": "allow",
+      "linear:list_*": "allow",
+      "linear:search_documentation": "allow",
+      "linear:extract_images": "allow"
+    },
+    "skill": "allow"
+  }
+}
