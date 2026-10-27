@@ -18,6 +18,7 @@ pi-web-access/
 
 # Local sessions, trust, and runtime data
 .atl/
+odd/
 sessions/
 odd/
 trust.json
@@ -25,6 +26,7 @@ permission-mode-state.json
 figma.json
 crashes.json
 models-store.json
+sipos-estado-tarjetas.fecha
 
 # Disabled extensions and permission decision logs
 disabled-extensions/

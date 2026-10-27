@@ -1,11 +1,12 @@
 {
   "dependencies": {
-    "@hypabolic/pi-hypa": "^1.0.8",
-    "gentle-engram": "^0.3.0",
-    "gentle-pi": "^4.0.0",
-    "pi-btw": "^0.7.1",
-    "pi-lens": "^4.3.0",
-    "pi-web-access": "^0.37.0"
+    "@gotgenes/pi-permission-system": "41.0.0",
+    "@hypabolic/pi-hypa": "^1.2.0",
+    "gentle-engram": "^0.4.2",
+    "gentle-pi": "^4.3.0",
+    "pi-btw": "^0.8.0",
+    "pi-lens": "^4.4.5",
+    "pi-web-access": "^0.45.0"
   },
   "name": "pi-extensions",
   "private": true

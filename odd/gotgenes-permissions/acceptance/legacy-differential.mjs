@@ -16,8 +16,9 @@ await writeFile(path.join(agent, 'pi-permissions.jsonc'), await readFile('odd/go
 await writeFile(path.join(agent, 'extensions/pi-permission-system/config.json'), await readFile('odd/gotgenes-permissions/backups/config.json'));
 process.env.PI_CODING_AGENT_DIR = agent;
 const jiti = createJiti(import.meta.url);
-const extension = await jiti.import(path.resolve('extensions/pi-permission-system/src/index.ts'));
-const { PermissionManager } = await jiti.import(path.resolve('extensions/pi-permission-system/src/permission-manager.ts'));
+const legacyRoot = await import('node:fs/promises').then(({ access }) => access('extensions/pi-permission-system/src/index.ts').then(() => path.resolve('extensions/pi-permission-system')).catch(() => path.resolve('disabled-extensions/pi-permission-system')));
+const extension = await jiti.import(path.join(legacyRoot, 'src/index.ts'));
+const { PermissionManager } = await jiti.import(path.join(legacyRoot, 'src/permission-manager.ts'));
 const legacyManager = new PermissionManager({
   globalConfigPath: path.join(agent, 'pi-permissions.jsonc'),
   agentsDir: path.join(agent, 'agents'),
