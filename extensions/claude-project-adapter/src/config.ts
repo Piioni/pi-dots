@@ -3,6 +3,8 @@ export const MAX_COMMAND_BYTES = 120_000;
 export const MAX_SETTINGS_BYTES = 256_000;
 export const DEFAULT_HOOK_TIMEOUT_SECONDS = 10;
 export const MAX_HOOK_TIMEOUT_SECONDS = 60;
+export const MAX_LIFECYCLE_HOOK_TIMEOUT_SECONDS = 180;
+export const MAX_LIFECYCLE_HOOK_BATCH_TIMEOUT_MS = 180_000;
 export const MAX_PRE_TOOL_USE_HOOKS = 16;
 export const MAX_HOOK_BATCH_TIMEOUT_MS = 60_000;
 export const MAX_HOOK_OUTPUT_BYTES = 64 * 1024;
@@ -35,17 +37,4 @@ export const RESERVED_PI_COMMAND_NAMES = new Set<string>([
   "share",
   "tree",
   "trust",
-]);
-
-export const ALLOWED_CLAUDE_COMMAND_NAMES = new Set<string>([
-  "adr",
-  "branch",
-  "changelog",
-  "check",
-  "commit-changelog",
-  "create-feature-scaffold",
-  "gen",
-  "new-usecase",
-  "pr",
-  "test-for",
 ]);

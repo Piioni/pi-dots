@@ -1,6 +1,6 @@
-import { existsSync, readdirSync, statSync } from "node:fs";
+import { existsSync, statSync } from "node:fs";
 import { homedir } from "node:os";
-import { basename, dirname, join, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
 
 export type ClaudeProject = {
@@ -9,24 +9,13 @@ export type ClaudeProject = {
   rulesDir: string;
   skillsDir: string;
   commandsDir: string;
-  settingsPath: string;
 };
 
 export type ClaudeProjectResolver = (startDir: string) => ClaudeProject | undefined;
-export type CachedClaudeProjectResolver = ClaudeProjectResolver & { clear(): void };
-
-export function createClaudeProjectResolver(): CachedClaudeProjectResolver {
-  const cache = new Map<string, ClaudeProject | undefined>();
-  const resolver = ((startDir: string) => {
-    const normalizedStartDir = resolve(startDir);
-    if (!cache.has(normalizedStartDir)) {
-      cache.set(normalizedStartDir, findClaudeProject(normalizedStartDir));
-    }
-    return cache.get(normalizedStartDir);
-  }) as CachedClaudeProjectResolver;
-
-  resolver.clear = () => cache.clear();
-  return resolver;
+export function createClaudeProjectResolver(): ClaudeProjectResolver {
+  // Resolve afresh so cwd changes, filesystem edits and resource reloads cannot
+  // reuse a cached project from another location.
+  return (startDir) => findClaudeProject(resolve(startDir));
 }
 
 export function findClaudeProject(startDir: string): ClaudeProject | undefined {
@@ -46,7 +35,6 @@ export function findClaudeProject(startDir: string): ClaudeProject | undefined {
         rulesDir: join(claudeDir, "rules"),
         skillsDir: join(claudeDir, "skills"),
         commandsDir: join(claudeDir, "commands"),
-        settingsPath: join(claudeDir, "settings.json"),
       };
     }
 
@@ -57,19 +45,6 @@ export function findClaudeProject(startDir: string): ClaudeProject | undefined {
     const parent = dirname(current);
     if (parent === current) return undefined;
     current = parent;
-  }
-}
-
-export function listMarkdownFiles(dir: string): string[] {
-  try {
-    if (!statSync(dir).isDirectory()) return [];
-
-    return readdirSync(dir)
-      .filter((entry) => entry.endsWith(".md"))
-      .map((entry) => join(dir, entry))
-      .sort((a, b) => basename(a).localeCompare(b));
-  } catch {
-    return [];
   }
 }
 
