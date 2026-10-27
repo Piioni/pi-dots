@@ -39,6 +39,34 @@ type MarkdownRenderCacheEntry = RenderCacheEntry & {
 let toolRenderCache = new WeakMap<object, ToolRenderCacheEntry>();
 let markdownRenderCache = new WeakMap<object, MarkdownRenderCacheEntry>();
 let userRenderCache = new WeakMap<object, RenderCacheEntry>();
+const USER_MESSAGE_RENDER_LAYER = Symbol.for("me.pi.user-message-render-layer");
+const UI_OVERHAUL_RENDER_OWNER = "ui-overhaul";
+
+type UserMessageRender = Renderable["render"] & { [USER_MESSAGE_RENDER_LAYER]?: UserMessageRenderLayer };
+type UserMessageRenderLayer = { owner: string; original: UserMessageRender; active: boolean };
+
+function getUserMessageRenderLayer(render: Renderable["render"]): UserMessageRenderLayer | undefined {
+  return (render as UserMessageRender)[USER_MESSAGE_RENDER_LAYER];
+}
+
+function deactivateUserMessageRender(render: UserMessageRender, owner: string): void {
+  let current: UserMessageRender | undefined = render;
+  while (current) {
+    const layer = getUserMessageRenderLayer(current);
+    if (!layer) return;
+    if (layer.owner === owner) layer.active = false;
+    current = layer.original;
+  }
+}
+
+function unwrapInactiveUserMessageRenders(render: UserMessageRender): UserMessageRender {
+  let current = render;
+  while (true) {
+    const layer = getUserMessageRenderLayer(current);
+    if (!layer || layer.active) return current;
+    current = layer.original;
+  }
+}
 
 function invalidatePatchedRender(target: object): void {
   markdownRenderCache.delete(target);
@@ -48,7 +76,21 @@ function invalidatePatchedRender(target: object): void {
 export function restore(proto: PatchedPrototype): void {
   const originals = proto[ORIGINALS];
   if (!originals) return;
-  for (const [key, value] of Object.entries(originals)) proto[key] = value;
+  const userMessagePatch = originals.__uiUserMessagePatchedRender as UserMessageRender | undefined;
+  if (userMessagePatch) {
+    const layer = getUserMessageRenderLayer(userMessagePatch);
+    if (layer?.owner === UI_OVERHAUL_RENDER_OWNER) layer.active = false;
+    const renderable = proto as PatchedPrototype & Renderable;
+    if (renderable.render === userMessagePatch) {
+      renderable.render = layer
+        ? unwrapInactiveUserMessageRenders(userMessagePatch)
+        : originals.render as Renderable["render"];
+    }
+  }
+  for (const [key, value] of Object.entries(originals)) {
+    if (key === "__uiUserMessagePatchedRender" || (key === "render" && userMessagePatch)) continue;
+    proto[key] = value;
+  }
   proto[PATCHED] = false;
   proto[ORIGINALS] = undefined;
   toolRenderCache = new WeakMap<object, ToolRenderCacheEntry>();
@@ -201,8 +243,10 @@ export function installUserMessagePatch(
 ): void {
   if (proto[PATCHED]) return;
 
+  deactivateUserMessageRender(proto.render, UI_OVERHAUL_RENDER_OWNER);
+  const originalRender = unwrapInactiveUserMessageRenders(proto.render);
   proto[ORIGINALS] = {
-    render: proto.render,
+    render: originalRender,
     invalidate: proto.invalidate,
   };
 
@@ -212,17 +256,21 @@ export function installUserMessagePatch(
     original?.call(this);
   };
 
-  proto.render = function patchedRender(this: Renderable, width: number): string[] {
+  const layer: UserMessageRenderLayer = { owner: UI_OVERHAUL_RENDER_OWNER, original: originalRender, active: true };
+  const patchedRender: Renderable["render"] = function patchedRender(this: Renderable, width: number): string[] {
+    if (!layer.active) return originalRender.call(this, width);
     const theme = getTheme();
     const cached = userRenderCache.get(this);
     if (cached && cached.width === width && cached.theme === theme) return cached.lines;
 
-    const original = proto[ORIGINALS]?.render as ((this: Renderable, width: number) => string[]) | undefined;
     const contentWidth = Math.max(1, width - 4);
-    const lines = original ? renderUserBox(original.call(this, contentWidth), width, theme, helpers) : [];
+    const lines = renderUserBox(originalRender.call(this, contentWidth), width, theme, helpers);
     userRenderCache.set(this, { width, theme, lines });
     return lines;
   };
+  (patchedRender as UserMessageRender)[USER_MESSAGE_RENDER_LAYER] = layer;
+  proto.render = patchedRender;
+  (proto[ORIGINALS] as Record<string, unknown>).__uiUserMessagePatchedRender = patchedRender;
 
   proto[PATCHED] = true;
 }

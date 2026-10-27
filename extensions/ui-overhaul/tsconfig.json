@@ -6,14 +6,15 @@
     "baseUrl": ".",
     "paths": {
       "@earendil-works/pi-coding-agent": [
-        "../../../../.local/lib/node_modules/@earendil-works/pi-coding-agent/dist/index.d.ts"
+        "../pi-tool-display/node_modules/@earendil-works/pi-coding-agent/dist/index.d.ts"
       ],
       "@earendil-works/pi-tui": [
-        "../../../../.local/lib/node_modules/@earendil-works/pi-coding-agent/node_modules/@earendil-works/pi-tui/dist/index.d.ts"
+        "../pi-tool-display/node_modules/@earendil-works/pi-tui/dist/index.d.ts"
       ]
     },
     "typeRoots": [
-      "../../../../.local/lib/node_modules/@earendil-works/pi-coding-agent/node_modules/@types"
+      "./node_modules/@types",
+      "../pi-tool-display/node_modules/@types"
     ],
     "types": ["node"],
     "strict": true,

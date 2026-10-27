@@ -8,11 +8,14 @@ import {
   decorateAssistantCodeControls,
   getInlineCodeControls,
 } from "../src/assistant-code-controls.ts";
-import { resetRenderCache, setCurrentContext, type PatchedPrototype } from "../src/state.ts";
+import { ORIGINALS, PATCHED, resetRenderCache, setCurrentContext, type PatchedPrototype } from "../src/state.ts";
 import { themedBackground } from "../src/rendering.ts";
 import { extractAssistantCodeBlocks } from "../src/code-blocks.ts";
 import type { Renderable, ThemeLike, WidthHelpers } from "../src/types.ts";
 import { renderUserBox } from "../src/user-message.ts";
+import { initTheme, UserMessageComponent } from "../../pi-tool-display/node_modules/@earendil-works/pi-coding-agent/dist/index.js";
+import { tsImport } from "../../pi-tool-display/node_modules/tsx/dist/esm/api/index.mjs";
+import type { PatchableUserMessagePrototype } from "../../pi-tool-display/src/user-message-box-patch.ts";
 
 const ansiPattern = /\x1b\[[0-9;]*m/g;
 const plainTheme: ThemeLike = {
@@ -423,6 +426,72 @@ test("patches renders, forwards invalidation, restores, and reinstalls prototype
   } finally {
     resetRenderCache();
     setCurrentContext(undefined);
+  }
+});
+
+test("retired user-message layers delegate baseline rendering after fresh-owner cleanup", async () => {
+  initTheme("dark", false);
+  const { patchNativeUserMessagePrototype } = await tsImport(
+    new URL("../../pi-tool-display/src/user-message-box-renderer.ts", import.meta.url).href,
+    { parentURL: import.meta.url, tsconfig: false },
+  );
+  const baseline = UserMessageComponent.prototype.render;
+  const width = 48;
+
+  for (const uiFirst of [false, true]) {
+    for (const toolCleanupFirst of [false, true]) {
+      const prototype = Object.create(UserMessageComponent.prototype) as PatchedPrototype & Renderable & PatchableUserMessagePrototype;
+      prototype.render = baseline;
+      prototype[PATCHED] = false;
+      prototype[ORIGINALS] = undefined;
+      const component = new UserMessageComponent("baseline renderer content");
+      Object.setPrototypeOf(component, prototype);
+      const baselineLines = baseline.call(component, width);
+      const handlers = new Map<string, (event: unknown, context?: unknown) => Promise<void>>();
+      registerUiOverhaulLifecycle({ on(name: string, handler: (event: unknown, context?: unknown) => Promise<void>) { handlers.set(name, handler); } } as never, prototype, { render: baseline } as never, widthHelpers);
+      const start = handlers.get("session_start")!;
+      const shutdown = handlers.get("session_shutdown")!;
+      const startTui = () => start({}, { hasUI: true, mode: "tui", ui: { theme: plainTheme } });
+      const patchToolDisplay = () => patchNativeUserMessagePrototype(prototype, () => plainTheme as never, () => true);
+      const installPair = async () => {
+        if (uiFirst) {
+          await startTui();
+          patchToolDisplay();
+        } else {
+          patchToolDisplay();
+          await startTui();
+        }
+      };
+      const freshUi = await import(new URL(`../src/prototype-patches.ts?render-case=${uiFirst}-${toolCleanupFirst}`, import.meta.url).href);
+      const freshTool = await import(new URL(`../../pi-tool-display/src/user-message-box-patch.ts?render-case=${uiFirst}-${toolCleanupFirst}`, import.meta.url).href);
+      const retirePair = async () => {
+        if (toolCleanupFirst) {
+          freshTool.unregisterUserMessageRenderPrototypePatch(prototype);
+          freshUi.restore(prototype);
+        } else {
+          freshUi.restore(prototype);
+          freshTool.unregisterUserMessageRenderPrototypePatch(prototype);
+        }
+        await shutdown({ reason: "reload" });
+      };
+
+      await installPair();
+      const capturedRender = prototype.render;
+      const laterRenderer = function laterRenderer(this: object, renderWidth: number) {
+        return capturedRender.call(this, renderWidth);
+      };
+      prototype.render = laterRenderer;
+      await retirePair();
+      assert.strictEqual(prototype.render, laterRenderer, "cleanup preserves a later delegating renderer");
+      assert.deepEqual(prototype.render.call(component, width), baselineLines, `${uiFirst}/${toolCleanupFirst} cleanup output`);
+      await retirePair();
+      assert.deepEqual(prototype.render.call(component, width), baselineLines, "repeated cleanup stays baseline");
+
+      await installPair();
+      await retirePair();
+      assert.strictEqual(prototype.render, laterRenderer, "reinstall cleanup preserves the later renderer");
+      assert.deepEqual(prototype.render.call(component, width), baselineLines, `${uiFirst}/${toolCleanupFirst} reinstalled output`);
+    }
   }
 });
 
