@@ -7,6 +7,7 @@ bin/
 install/
 git/
 node_modules/
+.ruff_cache/
 
 # Package-managed resources and state
 agents/
