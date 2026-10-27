@@ -1,33 +1,31 @@
-# Gentle AI runtime (installed by package — pi install/update restores them)
-gentle-ai/
-agents/
-chains/
-pi-pretty/
-odd/
-gentle-agents/
+# Credentials and authentication
+auth.json
+mcp-auth.json
 
-# Sessions — large and ephemeral
-sessions/
-
-# Node modules
+# Installed Pi runtime, packages, and dependencies
+bin/
+install/
+git/
 node_modules/
 
-# Auth credentials — never commit
-auth.json
+# Package-managed resources and state
+agents/
+chains/
+gentle-ai/
+gentle-agents/
+pi-pretty/
+pi-web-access/
 
-# MCP cache and model store
-mcp-cache.json
-mcp-onboarding.json
-models-store.json
-
-# Local Pi runtime state
+# Local sessions, trust, and runtime data
 .atl/
+sessions/
+odd/
 trust.json
-
-# cosas
 permission-mode-state.json
-disabled-extensions/
 figma.json
 crashes.json
-git/
+models-store.json
+
+# Disabled extensions and permission decision logs
+disabled-extensions/
 extensions/pi-permission-system/logs/
