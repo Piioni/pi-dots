@@ -10,33 +10,7 @@
     "write": true,
     "codemode": true
   },
-  "customToolOverrides": {
-    "hypa_read": {
-      "enabled": true,
-      "kind": "generic",
-      "outputMode": "hidden"
-    },
-    "hypa_grep": {
-      "enabled": true,
-      "kind": "generic",
-      "outputMode": "hidden"
-    },
-    "hypa_find": {
-      "enabled": true,
-      "kind": "generic",
-      "outputMode": "hidden"
-    },
-    "hypa_ls": {
-      "enabled": true,
-      "kind": "generic",
-      "outputMode": "hidden"
-    },
-    "hypa_shell": {
-      "enabled": true,
-      "kind": "generic",
-      "outputMode": "hidden"
-    }
-  },
+  "customToolOverrides": {},
   "enableNativeUserMessageBox": false,
   "readOutputMode": "summary",
   "searchOutputMode": "count",
