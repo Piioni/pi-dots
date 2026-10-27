@@ -8,8 +8,8 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent"
 import { createConnection } from "node:net"
 import { homedir } from "node:os"
-import { join as pathJoin } from "node:path"
-import { closeSync, openSync, readSync } from "node:fs"
+import { isAbsolute, join as pathJoin } from "node:path"
+import { closeSync, openSync, readFileSync, readSync } from "node:fs"
 import { spawnSync } from "node:child_process"
 
 // Kept for debugging / manual replay through the CLI adapter above.
@@ -41,9 +41,14 @@ function resolveSocketPath(): string {
 // (so the daemon does not log broken pipes), close. Every failure resolves
 // silently — hooks must never interrupt the user's Pi turn when
 // Moshi is absent.
+const inFlightSends = new Set<Promise<void>>()
+
 function sendEnvelope(envelope: Record<string, unknown>): void {
   try {
     const sock = createConnection({ path: resolveSocketPath() })
+    const done = new Promise<void>((resolve) => sock.once("close", () => resolve()))
+    inFlightSends.add(done)
+    done.then(() => inFlightSends.delete(done))
     sock.setNoDelay(true)
     sock.on("error", () => {
       try {
@@ -56,6 +61,21 @@ function sendEnvelope(envelope: Record<string, unknown>): void {
     })
     sock.on("data", () => {})
   } catch {}
+}
+
+// flushSends resolves once every queued envelope has reached the daemon (or
+// failed), capped at timeoutMs. Returned from session_shutdown, which the host
+// awaits before exiting — without it the process exits before the socket even
+// connects and the session never ends in Moshi.
+function flushSends(timeoutMs: number): Promise<void> {
+  if (inFlightSends.size === 0) return Promise.resolve()
+  return new Promise<void>((resolve) => {
+    const timer = setTimeout(resolve, timeoutMs)
+    Promise.all([...inFlightSends]).then(() => {
+      clearTimeout(timer)
+      resolve()
+    })
+  })
 }
 
 interface TerminalContext {
@@ -383,7 +403,13 @@ function recordTaskCompletion(state: SessionState, signature: string, now: numbe
 // on the next event.
 const transcriptChildCache = new Map<string, boolean>()
 
+//
+// OMP's header is no such signal (its main-session handoffs carry a parent
+// too), but since 18.3.2 ctx.agent.kind names subagent sessions directly.
+// They never fire session_stop, so a forwarded prompt would stay in flight
+// forever.
 function sessionIsChild(state: SessionState, payload: HookPayload): boolean {
+  if (agentSource === "omp") return payload.agent_kind === "sub"
   if (agentSource !== "pi" && agentSource !== "omo") return false
   const path = payload.transcript_path || state.transcriptPath
   if (!path) return false
@@ -425,6 +451,7 @@ interface HookPayload {
   cwd: string
   model: string
   context_remaining: number | undefined
+  agent_kind: string
   [key: string]: unknown
 }
 
@@ -467,6 +494,11 @@ function handleEvent(payload: HookPayload): void {
   const isChild = sessionIsChild(state, payload)
   switch (payload.hook_event_name) {
     case "SessionStart": {
+      // OMP subagents run in the parent process and inherit its pane; their
+      // start would repoint the pane at a session whose transcript the
+      // daemon cannot serve. Pi/OmO lineage children are user-driven forks
+      // that do take over the pane, so they still announce themselves.
+      if (isChild && agentSource === "omp") return
       if (payload.model) state.model = payload.model
       if (payload.transcript_path) state.transcriptPath = payload.transcript_path
       state.sessionStartTime = nowSeconds()
@@ -525,6 +557,34 @@ function handleEvent(payload: HookPayload): void {
       sendEnvelope(envelope)
       return
     }
+    case "PlanReview": {
+      // The native plan review is open. The plan rides along as the Chat
+      // View card; without an action id no approval bar opens.
+      if (isChild) return
+      const plan = firstString(payload.plan)
+      if (!plan) return
+      const title = "Review " + agentDisplayName + "'s plan"
+      const prompt: Record<string, unknown> = { kind: "plan", plan }
+      const toolUseId = firstString(payload.tool_use_id)
+      if (toolUseId) prompt.toolUseId = toolUseId
+      const planFilePath = firstString(payload.plan_file_path)
+      if (planFilePath) prompt.planFilePath = planFilePath
+      const envelope = baseEnvelope(payload, sessionId, "PlanReview")
+      envelope.category = "approval_required"
+      envelope.toolName = "exit_plan_mode"
+      envelope.title = title
+      envelope.subtitle = "Answer in terminal"
+      envelope.message = plainTextClip(planSummary(plan), 256)
+      envelope.interactivePrompt = prompt
+      state.lastToolName = "exit_plan_mode"
+      state.lastEventTitle = title
+      sendEnvelope(envelope)
+      return
+    }
+    case "PlanResolved":
+      // Category-less: the daemon retires the plan card and publishes nothing.
+      sendEnvelope(baseEnvelope(payload, sessionId, "PlanResolved"))
+      return
     case "PermissionResolved": {
       const title = agentDisplayName + " resumed"
       const envelope = baseEnvelope(payload, sessionId, "PermissionResolved")
@@ -555,6 +615,44 @@ function handleEvent(payload: HookPayload): void {
   }
 }
 
+// planFileOnDisk resolves OMP's plan path: local:// lives under the session's
+// artifacts directory (the transcript path without .jsonl); anything else is
+// relative to the session cwd.
+function planFileOnDisk(planFilePath: string, ctx: Record<string, unknown>): string {
+  if (!planFilePath) return ""
+  const localPrefix = "local://"
+  if (!planFilePath.startsWith(localPrefix)) {
+    return isAbsolute(planFilePath) ? planFilePath : pathJoin(firstString(ctx.cwd as string, process.cwd()), planFilePath)
+  }
+  const sessionManager = ctx.sessionManager as Record<string, unknown> | undefined
+  let artifactsDir = ""
+  const getArtifactsDir = sessionManager?.getArtifactsDir
+  if (typeof getArtifactsDir === "function") {
+    try {
+      artifactsDir = String(getArtifactsDir.call(sessionManager) ?? "")
+    } catch {}
+  }
+  if (!artifactsDir) {
+    const transcript = transcriptPath(ctx)
+    if (transcript.endsWith(".jsonl")) artifactsDir = transcript.slice(0, -".jsonl".length)
+  }
+  return artifactsDir ? pathJoin(artifactsDir, "local", planFilePath.slice(localPrefix.length)) : ""
+}
+
+// planSummary is the plan's first prose line, for the inbox row.
+function planSummary(plan: string): string {
+  for (const line of plan.split("\n")) {
+    const text = line.replace(/^[#>*\-\s]+/, "").trim()
+    if (text) return text
+  }
+  return ""
+}
+
+function agentKind(ctx: Record<string, unknown>): string {
+  const agent = ctx.agent && typeof ctx.agent === "object" ? ctx.agent as Record<string, unknown> : {}
+  return firstString(agent.kind)
+}
+
 function send(eventName: string, event: unknown, ctx: unknown, extra: Record<string, unknown> = {}) {
   const eventObj = event && typeof event === "object" ? event as Record<string, unknown> : {}
   const ctxObj = ctx && typeof ctx === "object" ? ctx as Record<string, unknown> : {}
@@ -565,6 +663,7 @@ function send(eventName: string, event: unknown, ctx: unknown, extra: Record<str
     cwd: firstString(ctxObj.cwd as string, process.cwd()),
     model: modelLabel(ctxObj.model),
     context_remaining: contextRemaining(ctxObj),
+    agent_kind: agentKind(ctxObj),
     ...extra,
   }
 
@@ -610,7 +709,10 @@ export default function moshiPiHook(pi: ExtensionAPI): void {
 
 
 
+
+
   pi.on("session_shutdown", (event, ctx) => {
     send("SessionEnd", event, ctx)
+    return flushSends(1000)
   })
 }
